@@ -5,4 +5,4 @@ Usage:
 
 Open Discord.
 Navigate to folder containing python script.
-Run script using: 'python <filename>'
+Run script using: 'python filename.py'
