@@ -20,7 +20,7 @@ async def on_message(message):  # event that happens per any message.
     print(f"{message.channel}: {message.author}: {message.author.name}: {message.content}")
 
     if len(message) != 0:
-    	await message.channel.send("jon is trash")
+    	await message.channel.send("ok")
 
 # @client.event
 # async def on_message(message):  # event that happens per any message.
