@@ -1,5 +1,4 @@
 
-
 import discord
 # print(discord.__version__)  # check to make sure at least once you're on the right version!
 
@@ -20,8 +19,8 @@ async def on_message(message):  # event that happens per any message.
     # check out more by print(dir(message)) for example.
     print(f"{message.channel}: {message.author}: {message.author.name}: {message.content}")
 
-    if "hi there" in message.content.lower():
-    	await message.channel.send("YEE")
+    if len(message) != 0:
+    	await message.channel.send("jon is trash")
 
 # @client.event
 # async def on_message(message):  # event that happens per any message.
