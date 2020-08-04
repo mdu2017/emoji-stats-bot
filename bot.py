@@ -36,4 +36,4 @@ async def joke(ctx):
     await ctx.send('It\'s in your pants!')
 
 
-client.run('Njg5OTE4NDE5NDUzMzQ1ODE5.XnJ2mQ.JAfp7D7P4UXchVgFxMj1ACQ1KeU')  # token from text file
+client.run(token)  # token from text file
