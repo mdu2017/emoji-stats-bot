@@ -1,14 +1,19 @@
 import asyncio
 import discord
+import self
 from discord.ext import commands
 from discord.emoji import Emoji
 
 token = open("token.txt", "r").read()  # read token from txt file
 emojiList = dict()  # dictionary, key-value pairs
 
+# TODO: filter emojiList string keys to shortened version in on_ready
+# TODO: Add reactions based on messages
+# TODO: Take in variable num of commands and display on same line
+# TODO (separate): Add gamerBot to gg server (outputs links to different online games)
+
 # Command prefix is .
 client = commands.Bot(command_prefix='.')
-
 
 # Helper function to print emotes
 async def displayEmotes(ctx, amount, emoji):
@@ -32,12 +37,30 @@ async def displayEmotes(ctx, amount, emoji):
 
 # Returns specific emoji based on which function has called it (helper function)
 async def getEmote(ctx, emotestring):
-    if emotestring == "pb":
-        return emojiList.get("pigboon")
-    if emotestring == "bb":
-        return emojiList.get("baboon")
-    if emotestring == "smtb":
-        return emojiList.get("smartboon")
+    if emotestring == 'pb':
+        return emojiList.get('pigboon')
+    if emotestring == 'bb':
+        return emojiList.get('baboon')
+    if emotestring == 'smtb':
+        return emojiList.get('smartboon')
+    if emotestring == 'blue':
+        return emojiList.get('bluebaboon')
+    if emotestring == 'red':
+        return emojiList.get('redbaboon')
+    if emotestring == 'spook':
+        return emojiList.get('spooked')
+    if emotestring == 'cowboy':
+        return emojiList.get('cowboybaboon')
+    if emotestring == 'chef':
+        return emojiList.get('chefboon')
+    if emotestring == 'smug':
+        return emojiList.get('smug')
+    if emotestring == 'somm':
+        return emojiList.get('sommelier')
+    if emotestring == 'rspig':
+        return emojiList.get('researchpig')
+    if emotestring == 'smtpig':
+        return emojiList.get('Pigsuit')
 
 
 @client.event
@@ -75,25 +98,76 @@ async def iq(ctx):
             if nickname == 'Pigboon':
                 await ctx.send(f'{nickname} has an IQ of 90')
 
-
 # Pigboon emote X times (.pb <num>)
 @client.command()
 async def pb(ctx, amount=1):
     emoji = await getEmote(ctx, emotestring="pb")
     await displayEmotes(ctx, amount, emoji)
 
-
-# Pigboon emote X times (.bb <num>)
+# Baboon emote X times (.bb <num>)
 @client.command()
 async def bb(ctx, amount=1):
     emoji = await getEmote(ctx, emotestring="bb")
     await displayEmotes(ctx, amount, emoji)
 
-
-# Pigboon emote X times (.bb <num>)
+# smartboon emote X times (.smtb <num>)
 @client.command()
 async def smtb(ctx, amount=1):
     emoji = await getEmote(ctx, emotestring="smtb")
+    await displayEmotes(ctx, amount, emoji)
+
+# bluebaboon emote X times (.blue <num>)
+@client.command()
+async def blue(ctx, amount=1):
+    emoji = await getEmote(ctx, emotestring="blue")
+    await displayEmotes(ctx, amount, emoji)
+
+# redbaboon emote X times (.red <num>)
+@client.command()
+async def red(ctx, amount=1):
+    emoji = await getEmote(ctx, emotestring="red")
+    await displayEmotes(ctx, amount, emoji)
+
+# spook emote X times (.spook <num>)
+@client.command()
+async def spook(ctx, amount=1):
+    emoji = await getEmote(ctx, emotestring="spook")
+    await displayEmotes(ctx, amount, emoji)
+
+# Cowboy emote X times (.cowboy <num>)
+@client.command()
+async def cowboy(ctx, amount=1):
+    emoji = await getEmote(ctx, emotestring="cowboy")
+    await displayEmotes(ctx, amount, emoji)
+
+# chef emote X times (.chef <num>)
+@client.command()
+async def chef(ctx, amount=1):
+    emoji = await getEmote(ctx, emotestring="chef")
+    await displayEmotes(ctx, amount, emoji)
+
+# smug emote X times (.smug <num>)
+@client.command()
+async def smug(ctx, amount=1):
+    emoji = await getEmote(ctx, emotestring="smug")
+    await displayEmotes(ctx, amount, emoji)
+
+# somm emote X times (.somm <num>)
+@client.command()
+async def somm(ctx, amount=1):
+    emoji = await getEmote(ctx, emotestring="somm")
+    await displayEmotes(ctx, amount, emoji)
+
+# rspig emote X times (.rspig <num>)
+@client.command()
+async def rspig(ctx, amount=1):
+    emoji = await getEmote(ctx, emotestring="rspig")
+    await displayEmotes(ctx, amount, emoji)
+
+# smtpig emote X times (.smtpig <num>)
+@client.command()
+async def smtpig(ctx, amount=1):
+    emoji = await getEmote(ctx, emotestring="smtpig")
     await displayEmotes(ctx, amount, emoji)
 
 
@@ -108,8 +182,8 @@ async def emotes(ctx):
 # Clears an X amount of messages from the channel (default 3) - (.cls or .clear)
 @client.command(aliases=['cls'])
 async def clear(ctx, amount=3):
-    if amount < 1 or amount > 10:
-        await ctx.send('Error: amount needs to be between 1-10')
+    if amount < 1 or amount > 25:
+        await ctx.send('Error: amount needs to be between 1-25')
         return
 
     # remove clear command
