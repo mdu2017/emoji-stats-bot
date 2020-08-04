@@ -9,8 +9,24 @@ Run script using: 'python filename.py'
 
 # Commands
 
-| Tables        | Are           | Cool  |
-| ------------- |:-------------:| -----:|
-| col 3 is      | right-aligned | $1600 |
-| col 2 is      | centered      |   $12 |
-| zebra stripes | are neat      |    $1 |
+| Command        | Description  |
+| ------------- |:-------------:| 
+| .ping       | shows network ping |
+| .iq        | Funny iq meme |
+| .joke     | it's in your pants | 
+| .cls <num>      | Deletes the <num> most recent messages  | 
+| .pb <amt>      | pigboon emote | 
+| .bb <amt>      | baboon emote      | 
+| .smtb <amt> | smartboon emote      | 
+| .blue <amt> | blueboon emote      | 
+| .red <amt> | redboon emote      | 
+| .spook <amt> | boo baboon emote      | 
+| .cowboy <amt> | cowboy baboon emote  | 
+| .chef <amt> | chefboon emote       | 
+| .smug <amt> | smug pooh emote      | 
+| .somm <amt> | sommelier emote      | 
+| .rspig <amt> | research pig emote  | 
+| .smtpig <amt> | pigsuit emote      | 
+
+<num> - is any number between 1-25
+<amt> - is any number between 1-3
