@@ -28,5 +28,5 @@ Run script using: 'python filename.py'
 | .rspig <amt> | research pig emote  | 
 | .smtpig <amt> | pigsuit emote      | 
 
-<num> - is any number between 1-25
-<amt> - is any number between 1-3
+\<num\> - is any number between 1-25
+\<amt\> - is any number between 1-3
