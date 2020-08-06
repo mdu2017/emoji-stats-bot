@@ -4,8 +4,12 @@ Discord Bot program using Python
 Usage:
 
 Open Discord.
-Navigate to folder containing python script.
-Run script using: 'python filename.py'
+
+git clone https://github.com/mdu2017/BotMaker.git
+
+Navigate to directory you just cloned
+
+Run script using: 'python bot.py'
 
 # Commands
 
