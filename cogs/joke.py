@@ -11,7 +11,8 @@ class Joke(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        print('Joke feature ready')
+        # print('Joke feature ready')
+        print()
 
     # IQ memes (.iq)
     @commands.command(brief='IQ joke')
@@ -67,6 +68,14 @@ class Joke(commands.Cog):
     @commands.command(brief='lazy response')
     async def lz(self, ctx):
         await ctx.send(f'Mmm... Sure Sure!')
+
+    # Overrides inherited cog_check method
+    async def cog_check(self, ctx):
+        # Prevent any commands from occuring in serious or debate channel
+        if ctx.channel.name == 'serious' or ctx.channel.name == 'baboons-of-pig-york':
+            return False
+        else:
+            return True
 
 
 def setup(client):

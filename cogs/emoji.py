@@ -4,76 +4,6 @@ import random
 from const import *
 
 
-# Helper function to print emotes
-async def displayEmotes(ctx, amount, emoji):
-    one = '{0}'.format(emoji)
-    two = '{0} {1}'.format(emoji, emoji)
-    three = '{0} {1} {2}'.format(emoji, emoji, emoji)
-
-    # Remove the actual clear command
-    await ctx.channel.purge(limit=1)
-
-    # Print <amt> of emotes
-    if amount == 1:
-        await ctx.send(one)
-    elif amount == 2:
-        await ctx.send(two)
-    elif amount == 3:
-        await ctx.send(three)
-    else:
-        await ctx.send(one)
-
-
-# Returns specific emoji based on which function has called it (helper function)
-async def getEmote(emotestring):
-    return emojiList.get(emotestring)
-
-
-async def loadEmotes(client):
-    for guild in client.guilds:
-        for emoji in guild.emojis:
-            emojiList.setdefault(emoji.name, emoji)
-
-    # Shorten string key
-    emojiList['pb'] = emojiList.pop('pigboon')
-    emojiList['bb'] = emojiList.pop('baboon')
-    emojiList['smtb'] = emojiList.pop('smartboon')
-    emojiList['blue'] = emojiList.pop('bluebaboon')
-    emojiList['red'] = emojiList.pop('redbaboon')
-    emojiList['spook'] = emojiList.pop('spooked')
-    emojiList['cowboy'] = emojiList.pop('cowboybaboon')
-    emojiList['chef'] = emojiList.pop('chefboon')
-    emojiList['smug'] = emojiList.pop('smug')
-    emojiList['somm'] = emojiList.pop('sommelier')
-    emojiList['rspig'] = emojiList.pop('researchpig')
-    emojiList['smtpig'] = emojiList.pop('Pigsuit')
-    emojiList['kn'] = emojiList.pop('knightboon')
-    emojiList['confused'] = emojiList.pop('confusedbb')
-
-    # Add list of emotes for random react (basic
-    randReactList.append(emojiList.get('pb'))
-    randReactList.append(emojiList.get('bb'))
-    randReactList.append(emojiList.get('smtb'))
-    randReactList.append(emojiList.get('rspig'))
-    randReactList.append(emojiList.get('somm'))
-    randReactList.append(emojiList.get('smtpig'))
-
-    # Add list of tuples (smart reacts)
-    smartReacts.append((THUMBSUP, emojiList.get('smtb')))
-    smartReacts.append((emojiList.get('rspig'), emojiList.get('smtpig')))
-    smartReacts.append((emojiList.get('somm'), emojiList.get('smtb')))
-    smartReacts.append((emojiList.get('smtb'), emojiList.get('rspig')))
-    smartReacts.append((emojiList.get('smtpig'), emojiList.get('smtb')))
-
-    # Add list of tuples (dumb reacts)
-    dumbReacts.append((emojiList.get('pb'), emojiList.get('bb')))
-    dumbReacts.append((emojiList.get('bb'), TROLL))
-    dumbReacts.append((emojiList.get('pb'), THUMBSDOWN))
-    dumbReacts.append((emojiList.get('bb'), THUMBSDOWN))
-    dumbReacts.append((emojiList.get('chef'), emojiList.get('bb')))
-    dumbReacts.append((emojiList.get('kn'), emojiList.get('bb')))
-
-
 class Emoji(commands.Cog):
     def __init__(self, client): # Add load emojis here (whenever initialized)
         self.client = client
@@ -82,8 +12,9 @@ class Emoji(commands.Cog):
     # Event
     @commands.Cog.listener()
     async def on_ready(self):
-        print('Emoji Cog ready')
-        await loadEmotes(self.client) # Loaded once and stored into constants
+        # print('Emoji Cog ready')
+        print()
+        # await loadEmotes(self.client) # Loaded once and stored into constants
 
     # Swap react to smart react
     @commands.command(brief='Adds dum reacts')
@@ -305,13 +236,14 @@ class Emoji(commands.Cog):
 
             count += 1
 
-    @commands.command()
-    async def watching(self, ctx):
-        act = discord.Activity(type=discord.ActivityType.watching, name="YouTube")
-        on = discord.Status.online
+        # Overrides inherited cog_check method
 
-        await self.client.change_presence(activity=act, status=on)
-        await ctx.channel.purge(limit=1)
+    async def cog_check(self, ctx):
+        # Prevent any commands from occuring in serious or debate channel
+        if ctx.channel.name == 'serious' or ctx.channel.name == 'baboons-of-pig-york':
+            return False
+        else:
+            return True
 
 
 # Global setup function
