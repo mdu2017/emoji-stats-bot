@@ -1,12 +1,6 @@
-import asyncio
-import random
-import re
 import os
 from const import *
 import asyncpg
-import asyncio
-
-import discord
 from discord.ext import commands, tasks
 
 # Command prefix is .
@@ -30,6 +24,7 @@ async def unload(ctx, extension):
     print(f'{extension} unloaded')
 
 
+# Reload command for cog
 @client.command(brief='(ex: .reload <cogName>)')
 async def reload(ctx, extension):
     client.reload_extension(f'cogs.{extension}')
@@ -43,14 +38,12 @@ for file in os.listdir('./cogs'):
         # print(f'{file} was loaded')
 
 
+# Loads all custom emojis into list
 @client.event
 async def on_ready():
     print('Main file ready, loading emotes')
-    await loadEmotes(client)
-    # await client.user.edit(avatar=pfp1)
+    # await loadEmotes(client)
 
 
 client.loop.run_until_complete(create_db_pool())  # Keep db pool open
 client.run(token)  # token from text file
-
-# loop.run_until_complete(run())

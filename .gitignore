@@ -1,7 +1,6 @@
 *.txt
-disc_bot_basic.py
-emote_helper.py
-games.py
-dbtest.py
 *.png
 *.jpg
+__pycache__/
+cogs/__pycache__/
+.idea/

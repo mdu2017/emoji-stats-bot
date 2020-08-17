@@ -1,37 +1,37 @@
-# BotMaker
-Discord Bot program using Python
+# Emoji Stats Discord Bot
+Discord Bot that analyzes emoji usage and reactions in a Discord server.
+
+Written in Python 3
 
 Usage:
 
-Open Discord.
+1. Open Discord application
 
-git clone https://github.com/mdu2017/BotMaker.git
+2. git clone https://github.com/mdu2017/emoji-stats-bot.git
 
-Navigate to directory you just cloned
+3. Navigate to directory you just cloned
 
-Run script using: 'python bot.py'
+4. Run python script using: 'python bot.py' (Will need python 3+)
 
 # Commands
 
 | Command        | Description  |
 | ------------- |:-------------:| 
 | .ping       | shows network ping |
-| .iq        | Funny iq meme |
-| .joke     | it's in your pants | 
 | .cls \<num\>      | Deletes the <num> most recent messages  | 
-| .pb \<amt\>      | pigboon emote | 
-| .bb \<amt\>      | baboon emote      | 
-| .smtb \<amt\> | smartboon emote      | 
-| .blue \<amt\> | blueboon emote      | 
-| .red \<amt\> | redboon emote      | 
-| .spook \<amt\> | boo baboon emote      | 
-| .cowboy \<amt\> | cowboy baboon emote  | 
-| .chef \<amt\> | chefboon emote       | 
-| .smug \<amt\> | smug pooh emote      | 
-| .somm \<amt\> | sommelier emote      | 
-| .rspig \<amt\> | research pig emote  | 
-| .smtpig \<amt\> | pigsuit emote      | 
+| .topreacts \<amt\>  | Shows the X most popular reactions | 
+| .userreacts \<username\>  | Shows a user's most used reactions| 
+| .fullreactstats | Shows stats on all reactions used| 
+| .topemojis \<amt\>  | Shows the X most popular emojis | 
+| .useremojis \<username\>  | Shows user's most used emojis | 
+| .fullmsgstats \<amt\>  | Shows stats for all emojis used in messages | 
+| .channelstats \<channel_name\> \<option\>  | Shows a channel's top 3 most popular reactions/emojis |
+| .fullchstats | Shows the most popular reaction/emoji for every channel | 
 
-\<num\> - is any number between 1-25 
+\<amt\> - is any number between 1-20 
 
-\<amt\> - is any number between 1-3
+\<username\> - can use Discord nickname or mention
+
+\<channel_name\> - Discord Text Channel name (no # needed)
+
+\<option\> -'react' or 'message'
