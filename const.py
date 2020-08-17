@@ -2,12 +2,12 @@ import unicodedata
 from itertools import cycle
 
 # Database credentials
-pswd = open('passwd.txt', 'r').read()
-# infoFile = open('db.txt', 'r')
-# db_host = infoFile.readline()
-# db = infoFile.readline()
-# db_user = infoFile.readline()
-# pswd = infoFile.readline()
+# pswd = open('passwd.txt', 'r').read()
+infoFile = open('db.txt', 'r')
+db_host = infoFile.readline()
+db = infoFile.readline()
+db_user = infoFile.readline()
+pswd = infoFile.readline()
 
 
 # read token from txt file

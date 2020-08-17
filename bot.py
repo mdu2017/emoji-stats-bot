@@ -10,9 +10,9 @@ client = commands.Bot(command_prefix='.')
 # Create connection pool
 async def create_db_pool():
     client.pg_con = await asyncpg.create_pool(
-        # host=db_host,
-        database='emojistats',
-        user='postgres',
+        host=db_host,
+        database=db,
+        user=db_user,
         password=pswd
     )
 
