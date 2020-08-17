@@ -26,7 +26,7 @@ class Message(commands.Cog):
             return
 
         ctx = await self.client.get_context(message)
-        channel_name = message.channel.name # TODO: Add channel info to queries
+        channel_name = message.channel.name  # TODO: Add channel info to queries
         msg = message.content
 
         userid = str(message.author.id)  # Store as string in DB
@@ -49,6 +49,11 @@ class Message(commands.Cog):
                     SELECT userid, reactid FROM users
                     WHERE userid = $1 AND reactid = $2 AND emojitype = 'message'""", userid, item)
 
+                chData = await self.client.pg_con.fetch("""
+                    SELECT chname, reactid FROM channel
+                    WHERE chname = $1 AND reactid = $2 AND emojitype = 'message'""", channel_name, item)
+
+                # Handle user data
                 if not existingData:
                     # print('Successfully adding custom emoji in msg')
                     await self.client.pg_con.execute("""
@@ -60,6 +65,16 @@ class Message(commands.Cog):
                         UPDATE users SET cnt = cnt + 1
                         WHERE emojitype = 'message' AND userid = $1 AND reactid = $2""", userid, item)
 
+                # Handle channel data
+                if not chData:
+                    await self.client.pg_con.execute("""
+                        INSERT INTO channel(chname, reactid, cnt, emojitype)
+                        VALUES ($1, $2, 1, 'message')""", channel_name, item)
+                else:
+                    await self.client.pg_con.execute("""
+                        UPDATE channel SET cnt = cnt + 1
+                        WHERE emojitype = 'message' AND chname = $1 AND reactid = $2""", channel_name, item)
+
         # Query unicode emojis into users db
         if len(unimojis) > 0:
             for item in unimojis:
@@ -67,6 +82,11 @@ class Message(commands.Cog):
                     SELECT userid, reactid FROM users 
                     WHERE userid = $1 AND reactid = $2 AND emojitype = 'message'""", userid, item)
 
+                chData = await self.client.pg_con.fetch("""
+                                    SELECT chname, reactid FROM channel
+                                    WHERE chname = $1 AND reactid = $2 AND emojitype = 'message'""", channel_name, item)
+
+                # Handle user data
                 if not existingData:
                     # print('Successfully adding unicode emoji in msg')
                     await self.client.pg_con.execute("""
@@ -78,17 +98,27 @@ class Message(commands.Cog):
                         UPDATE users SET cnt = cnt + 1
                         WHERE emojitype = 'message' AND userid = $1 AND reactid = $2""", userid, item)
 
-    # Returns the top 8 most used emojis in messages
+                # Handle channel data
+                if not chData:
+                    await self.client.pg_con.execute("""
+                        INSERT INTO channel(chname, reactid, cnt, emojitype)
+                        VALUES ($1, $2, 1, 'message')""", channel_name, item)
+                else:
+                    await self.client.pg_con.execute("""
+                        UPDATE channel SET cnt = cnt + 1
+                        WHERE emojitype = 'message' AND chname = $1 AND reactid = $2""", channel_name, item)
+
+    # Returns the top 5 most used emojis in messages
     @commands.command(brief='Display overall stats for emojis used in messages')
-    async def topemojis(self, ctx, amt=8):
+    async def topemojis(self, ctx, amt=5):
         # Handle invalid amount
-        if amt < 1 or amt > 20:
+        if amt < 1 or amt > 15:
             await ctx.send(f'Error: enter an amount between 1-20')
             return
 
         await ctx.send(f'The {amt} most used emojis in messages!')
 
-        # Grabs top 8 most used reacts in messages
+        # Grabs top 5 most used reacts in messages
         record = await self.client.pg_con.fetch("""
                     SELECT reactid, SUM(cnt) FROM users
                     WHERE users.emojitype = 'message'
@@ -145,22 +175,6 @@ class Message(commands.Cog):
         username = None
         userID = None
 
-        # # Handle empty channel name and invalid channel name
-        # if user_name == '':
-        #     await ctx.send('Usage: .useremojis <username>')
-        #     return
-        # else:
-        #     found = False
-        #     for member in ctx.guild.members:
-        #         if user_name == member.nick:
-        #             user = member
-        #             username = member.name
-        #             userID = member.id
-        #             break
-        #     if not found:
-        #         await ctx.send(f'User {user_name} was not found')
-        #         return
-
         # If mentioned, get by id, otherwise search each member's nickname
         if '@' in user_name and '!' in user_name:
             idStr = str(user_name)
@@ -190,7 +204,7 @@ class Message(commands.Cog):
                         SELECT reactid, cnt FROM users
                         WHERE userid = $1
                         AND users.emojitype = 'message'
-                        ORDER BY cnt DESC LIMIT 8;""", idValue)
+                        ORDER BY cnt DESC LIMIT 5;""", idValue)
 
         # Fetch single sum value
         emojiSum = await self.client.pg_con.fetchval("""
@@ -234,14 +248,59 @@ class Message(commands.Cog):
         result = '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=1))
 
         # Display results
-        await ctx.send(f'{username}\'s top 8 reacts!')
+        await ctx.send(f'{username}\'s top 5 reacts!')
         await ctx.send(f'{username}\'s favorite emoji: {favoriteEmoji}\n')
         await ctx.send(f'{result}')
 
-    # TODO: implement
     @commands.command(brief='Stat for every emoji used in messages')
     async def fullmsgstats(self, ctx):
-        print('todo')
+        record = await self.client.pg_con.fetch("""
+            SELECT reactid, SUM(cnt) 
+            FROM users WHERE users.emojitype = 'message'
+            GROUP BY reactid
+            ORDER BY SUM(cnt) DESC""")
+
+        emojiSum = await self.client.pg_con.fetchval("""SELECT SUM(cnt) FROM users WHERE emojitype = 'message'""")
+
+        data = dict(record)
+        finalList = []
+
+        # Convert emoji into discord representation
+        for key in data:
+            keystr = str(key)
+            percentage = round((data[key] / emojiSum) * 100, 2)
+            spacing = ''
+            if len(finalList) == 0:  # Spacing for first item
+                spacing = ' '
+            else:
+                spacing = ''
+
+            if '<' in keystr:  # If it's a custom emoji, parse ID
+                startIndex = keystr.rindex(':') + 1
+                endIndex = keystr.index('>')
+                id = int(key[startIndex:endIndex])
+                name = 'EMOJI'
+                currEmoji = self.client.get_emoji(id)
+                if currEmoji is not None:
+                    name = currEmoji.name
+                finalList.append(
+                    f'{spacing}{currEmoji} - {name} used ({data[key]}) times | {percentage}% of emojis.')
+
+            else:
+                temp = handleSpecialEmojis(key)  # TODO: Some emojis won't have a name so 'EMOJI' is by default
+                finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times | {percentage}% of emojis.')
+
+        # If no reaction data from query, return empty
+        if len(finalList) == 0:
+            await ctx.send(f'No data available')
+            return
+
+        result = '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=1))
+
+        # Display results
+        await ctx.send(f'Full stats on overall usage of each emoji')
+        await ctx.send(f'{result}')
+
 
 def setup(client):
     client.add_cog(Message(client))

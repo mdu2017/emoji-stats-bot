@@ -26,6 +26,11 @@ class Reaction(commands.Cog):
                 SELECT userid, reactid FROM users 
                 WHERE userid = $1 AND reactid = $2 AND emojitype = 'react'""", userid, value)
 
+        chData = await self.client.pg_con.fetch("""
+                        SELECT chname, reactid FROM channel 
+                        WHERE chname = $1 AND reactid = $2 AND emojitype = 'react'""", channel_name, value)
+
+        # Process user data
         if not userData:
             await self.client.pg_con.execute("""
                     INSERT INTO users(userid, reactid, cnt, emojitype) 
@@ -37,18 +42,26 @@ class Reaction(commands.Cog):
                     WHERE users.userid = $1 AND users.reactid = $2 AND emojitype = 'react'""", userid, value)
             # print(f'successfully updated -- \n')
 
+        # Process channel data
+        if not chData:
+            await self.client.pg_con.execute("""
+                INSERT INTO channel(chname, reactid, cnt, emojitype) 
+                VALUES($1, $2, 1, 'react')""", channel_name, value)
+        else:
+            await self.client.pg_con.execute("""
+                UPDATE channel SET cnt = cnt + 1
+                WHERE chname = $1 AND reactid = $2 AND emojitype = 'react'""", channel_name, value)
+
+
     # Handles processing when reaction is removed from a message
     @commands.Cog.listener()
     async def on_reaction_remove(self, reaction, user):
-        channel = reaction.message.channel
+        channel_name = reaction.message.channel.name
         userid = str(user.id)
         emojiID = reaction.emoji
         value = str(emojiID)  # Stringify emoji for database
 
-        # record = await self.client.pg_con.fetch("SELECT * FROM react WHERE react.reactid = $1", value)
-        # if record:
-        #     await self.client.pg_con.execute("""UPDATE react SET cnt = cnt - 1 WHERE react.reactid = $1 AND cnt > 0""", value)
-
+        # Handle user data
         userData = await self.client.pg_con.fetch("""
                 SELECT userid, reactid FROM users 
                 WHERE userid = $1 AND reactid = $2 AND emojitype = 'react'""", userid, value)
@@ -57,15 +70,24 @@ class Reaction(commands.Cog):
                     WHERE users.userid = $1 
                     AND users.reactid = $2 
                     AND cnt > 0 AND users.emojitype = 'react'""", userid, value)
-            print(f'Successfully removed -- \n')
+            # print(f'Successfully removed -- \n')
+
+        # Handle channel data
+        chData = await self.client.pg_con.fetch("""
+                SELECT chname, reactid FROM channel 
+                WHERE chname = $1 AND reactid = $2 AND emojitype = 'react'""", channel_name, value)
+        if chData:
+            await self.client.pg_con.execute("""
+                UPDATE channel SET cnt = cnt - 1
+                WHERE chname = $1 AND reactid = $2 AND emojitype = 'react' AND cnt > 0""", channel_name, value)
 
     # Gets the list of most used emojis for reactions
     @commands.command(brief="""Get list of top <N> most used reacts 
                             | Usage: .topreacts OR .topreacts <num> <mode> |
                              Modes include 'normal', 'custom', 'unicode' """)
-    async def topreacts(self, ctx, amt=8, mode='normal'):
+    async def topreacts(self, ctx, amt=5, mode='normal'):
         # Handle invalid amount
-        if amt < 1 or amt > 20:
+        if amt < 1 or amt > 15:
             await ctx.send(f'Error: enter an amount between 1-20')
             return
 
@@ -122,13 +144,11 @@ class Reaction(commands.Cog):
                 currEmoji = self.client.get_emoji(id)
                 if currEmoji is not None:
                     name = currEmoji.name
-                # converted.append((currEmoji, name, data[key], percentage))  # Emoji name, emoji, frequency
                 finalList.append(
                     f'{spacing}{currEmoji} - {name} used ({data[key]}) times | {percentage}% of all reacts.')
 
             else:
-                temp = handleSpecialEmojis(key)  # TODO: Some reacts won't have a mapping so 'EMOJI' is by default
-                # converted.append((key, temp, data[key], percentage))
+                temp = handleSpecialEmojis(key)  # TODO: Some reacts won't have a name so 'EMOJI' is by default
                 finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times | {percentage}% of all reacts.')
 
         result = '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=1))
@@ -176,7 +196,7 @@ class Reaction(commands.Cog):
                 SELECT reactid, cnt FROM users
                 WHERE userid = $1
                 AND users.emojitype = 'react'
-                ORDER BY cnt DESC LIMIT 8;""", idValue)
+                ORDER BY cnt DESC LIMIT 5;""", idValue)
 
         # Fetch single sum value
         emojiSum = await self.client.pg_con.fetchval("""
@@ -220,24 +240,29 @@ class Reaction(commands.Cog):
         result = '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=1))
 
         # Display results
-        await ctx.send(f'{username}\'s top 8 reacts!')
+        await ctx.send(f'{username}\'s top 5 reacts!')
         await ctx.send(f'{username}\'s favorite reaction: {favoriteReact}\n')
         await ctx.send(f'{result}')
 
     @commands.command(brief='Lists full stats for every react')
     async def fullreactstats(self, ctx):
-        # Grabs top 8 most used reacts
+        # Grabs all reactions
         record = await self.client.pg_con.fetch("""
-                SELECT reactid, SUM(cnt) FROM users
+                SELECT reactid, SUM(cnt) 
+                FROM users WHERE users.emojitype = 'react'
                 GROUP BY reactid
                 ORDER BY SUM(cnt) DESC""")
 
+        # Handle empty results
+        if record is None:
+            await ctx.send('No emoji data found.')
+            return
+
         # Fetch single sum value
-        emojiSum = await self.client.pg_con.fetchval("""SELECT SUM(cnt) FROM users""")
+        emojiSum = await self.client.pg_con.fetchval("""SELECT SUM(cnt) FROM users WHERE emojitype = 'react'""")
 
         # Assuming that record gives rows of exactly 2 columns
         data = dict(record)  # convert record to dictionary
-        converted = list(tuple())  # Convert into tuples (emoji, name, count)
         finalList = []
 
         # Convert emoji into discord representation
