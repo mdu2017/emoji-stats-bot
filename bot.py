@@ -1,20 +1,9 @@
 import os
 from const import *
-import asyncpg
-from discord.ext import commands, tasks
+from discord.ext import commands
 
 # Command prefix is .
 client = commands.Bot(command_prefix='.')
-
-
-# Create connection pool
-async def create_db_pool():
-    client.pg_con = await asyncpg.create_pool(
-        host=db_host,
-        database=db,
-        user=db_user,
-        password=pswd
-    )
 
 
 @client.command(brief='(ex: .load <cogName>)')
@@ -40,15 +29,43 @@ async def reload(ctx, extension):
 for file in os.listdir('./cogs'):
     if file.endswith('.py'):
         client.load_extension(f'cogs.{file[:-3]}')  # Trim .py extension off of string
-        # print(f'{file} was loaded')
 
 
 # Loads all custom emojis into list
 @client.event
 async def on_ready():
-    print('Main file ready, loading emotes')
-    # await loadEmotes(client)
+    conn = ps_pool.getconn()
+
+    if conn:
+        cursor = conn.cursor()
+        try:
+            # Create initial tables
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS channel (
+                chname    VARCHAR(50),
+                reactid   TEXT, 
+                cnt       int,
+                emojitype VARCHAR(20),
+                guildid   BIGINT,
+                PRIMARY KEY(chname, reactid, emojitype)
+            )""")
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users(
+                userid VARCHAR(100) NOT NULL,
+                reactid TEXT,
+                cnt		INT,
+                emojitype VARCHAR(20),
+                guildid   BIGINT,
+                PRIMARY KEY(userid, reactid, emojitype)
+            )""" )
+            print(f'Tables created successfully')
+            conn.commit()
+        except Exception as e:
+            print('Error creating tables')
+
+        cursor.close()  # Close cursor
+        ps_pool.putconn(conn)  # Return connection to pool
 
 
-client.loop.run_until_complete(create_db_pool())  # Keep db pool open
+# client.loop.run_until_complete(create_db_pool())  # Keep db pool open
 client.run(token)  # token from text file
