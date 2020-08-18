@@ -246,13 +246,13 @@ class Message(commands.Cog):
         # Leave off userid to fit into dictionary
         cursor.execute("""
             SELECT reactid, cnt FROM users
-            WHERE userid = (%s)
+            WHERE userid = %s
             AND users.emojitype = 'message'
             ORDER BY cnt DESC LIMIT 5;""", idValue)
         record = cursor.fetchall()
 
         # Fetch single sum value
-        cursor.execute("""SELECT SUM(cnt) FROM users WHERE userid = (%s) AND emojitype = 'message'""", idValue)
+        cursor.execute("""SELECT SUM(cnt) FROM users WHERE userid = %s AND emojitype = 'message'""", idValue)
         emojiSum = cursor.fetchone()
         emojiSum = int(emojiSum[0])
 
