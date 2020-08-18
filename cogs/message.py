@@ -23,6 +23,7 @@ class Message(commands.Cog):
             return
 
         ctx = await self.client.get_context(message)
+        guild_id = ctx.guild.id
         channel_name = message.channel.name  # TODO: Add channel info to queries
         msg = message.content
 
@@ -52,35 +53,39 @@ class Message(commands.Cog):
                 # Check if data exists
                 cursor.execute("""
                     SELECT userid, reactid FROM users
-                    WHERE userid = %s AND reactid = %s AND emojitype = 'message'""", (userid, item))
+                    WHERE userid = %s AND reactid = %s 
+                    AND emojitype = 'message' AND guildid = %s""", (userid, item, guild_id))
                 existingData = cursor.fetchall()
 
                 # Handle user data and commit
                 if len(existingData) == 0:
                     # print('Successfully adding custom emoji in msg')
                     cursor.execute("""
-                        INSERT INTO users(userid, reactid, cnt, emojitype)
-                        VALUES (%s, %s, 1, 'message')""", (userid, item))
+                        INSERT INTO users(userid, reactid, cnt, emojitype, guildid)
+                        VALUES (%s, %s, 1, 'message', %s)""", (userid, item, guild_id))
                 else:
                     # print(f'Custom emoji exists, updating entry')
                     cursor.execute("""
                         UPDATE users SET cnt = cnt + 1
-                        WHERE emojitype = 'message' AND userid = %s AND reactid = %s""", (userid, item))
+                        WHERE emojitype = 'message' AND userid = %s 
+                        AND reactid = %s AND guildid = %s""", (userid, item, guild_id))
                 conn.commit()
 
                 # Handle channel data and commit
                 cursor.execute("""
                         SELECT chname, reactid FROM channel
-                        WHERE chname = %s AND reactid = %s AND emojitype = 'message'""", (channel_name, item))
+                        WHERE chname = %s AND reactid = %s 
+                        AND emojitype = 'message' AND guildid = %s""", (channel_name, item, guild_id))
                 chData = cursor.fetchall()
                 if len(chData) == 0:
                     cursor.execute("""
-                        INSERT INTO channel(chname, reactid, cnt, emojitype)
-                        VALUES (%s, %s, 1, 'message')""", (channel_name, item))
+                        INSERT INTO channel(chname, reactid, cnt, emojitype, guildid)
+                        VALUES (%s, %s, 1, 'message', %s)""", (channel_name, item, guild_id))
                 else:
                     cursor.execute("""
                         UPDATE channel SET cnt = cnt + 1
-                        WHERE emojitype = 'message' AND chname = %s AND reactid = %s""", (channel_name, item))
+                        WHERE emojitype = 'message' AND chname = %s 
+                        AND reactid = %s AND guildid = %s""", (channel_name, item, guild_id))
                 conn.commit()
 
         # Query unicode emojis into users db
@@ -90,34 +95,38 @@ class Message(commands.Cog):
                 # Handle user data
                 cursor.execute("""
                         SELECT userid, reactid FROM users
-                        WHERE userid = %s AND reactid = %s AND emojitype = 'message'""", (userid, item))
+                        WHERE userid = %s AND reactid = %s 
+                        AND emojitype = 'message' AND guildid = %s""", (userid, item, guild_id))
                 existingData = cursor.fetchall()
                 if len(existingData) == 0:
                     # print('Successfully adding unicode emoji in msg')
                     cursor.execute("""
-                        INSERT INTO users(userid, reactid, cnt, emojitype)
-                        VALUES (%s, %s, 1, 'message')""", (userid, item))
+                        INSERT INTO users(userid, reactid, cnt, emojitype, guildid)
+                        VALUES (%s, %s, 1, 'message', %s)""", (userid, item, guild_id))
                 else:
                     # print('Unicode emoji exists, updating entry')
                     cursor.execute("""
                         UPDATE users SET cnt = cnt + 1
-                        WHERE emojitype = 'message' AND userid = %s AND reactid = %s""", (userid, item))
+                        WHERE emojitype = 'message' AND userid = %s 
+                        AND reactid = %s AND guildid = %s""", (userid, item, guild_id))
                 conn.commit()
 
                 # Handle channel data
                 cursor.execute("""
                         SELECT chname, reactid FROM channel
-                        WHERE chname = %s AND reactid = %s AND emojitype = 'message'""", (channel_name, item))
+                        WHERE chname = %s AND reactid = %s 
+                        AND emojitype = 'message' AND guildid = %s""", (channel_name, item, guild_id))
                 chData = cursor.fetchall()
 
                 if len(chData) == 0:
                     cursor.execute("""
-                        INSERT INTO channel(chname, reactid, cnt, emojitype)
-                        VALUES (%s, %s, 1, 'message')""", (channel_name, item))
+                        INSERT INTO channel(chname, reactid, cnt, emojitype, guildid)
+                        VALUES (%s, %s, 1, 'message', %s)""", (channel_name, item, guild_id))
                 else:
                     cursor.execute("""
                         UPDATE channel SET cnt = cnt + 1
-                        WHERE emojitype = 'message' AND chname = %s AND reactid = %s""", (channel_name, item))
+                        WHERE emojitype = 'message' AND chname = %s 
+                        AND reactid = %s AND guildid = %s""", (channel_name, item, guild_id))
                 conn.commit()
 
         cursor.close()  # Close cursor
@@ -140,13 +149,15 @@ class Message(commands.Cog):
             print('Error getting connection from pool')
             return
 
+        guild_id = ctx.guild.id
+
         # Grabs top 5 most used reacts in messages
         cursor.execute("""
             SELECT reactid, SUM(cnt) FROM users
-            WHERE users.emojitype = 'message'
+            WHERE users.emojitype = 'message' AND guildid = %s
             GROUP BY reactid
             ORDER BY SUM(cnt) DESC
-            LIMIT %s""", [amt])
+            LIMIT %s""", (guild_id, amt))
         record = cursor.fetchall()
 
         # Check empty query
@@ -155,7 +166,7 @@ class Message(commands.Cog):
             return
 
         # Fetch single sum value by message
-        cursor.execute("""SELECT SUM(cnt) FROM users WHERE emojitype = 'message'""")
+        cursor.execute("""SELECT SUM(cnt) FROM users WHERE emojitype = 'message' AND guildid = %s""", (guild_id,))
         emojiSum = cursor.fetchone()
         emojiSum = int(emojiSum[0])
 
@@ -192,13 +203,13 @@ class Message(commands.Cog):
 
         # If no reaction data from query, return empty
         if len(finalList) == 0:
-            await ctx.send(f'Error: No emoji data found')
+            await ctx.send(f'Error: No emoji data found in this server')
             return
 
         result = '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=1))
 
         # Display results
-        await ctx.send(f'The {amt} most used emojis in messages!')
+        await ctx.send(f'The {amt} most used emojis in messages in the server:')
         await ctx.send(f'{result}')
 
         # Close db stuff
@@ -242,16 +253,19 @@ class Message(commands.Cog):
             return
 
         idValue = str(userID)
+        guild_id = ctx.guild.id
 
         # Leave off userid to fit into dictionary
         cursor.execute("""
             SELECT reactid, cnt FROM users
-            WHERE userid = %s AND users.emojitype = 'message'
-            ORDER BY cnt DESC LIMIT 5;""", (str(idValue),))
+            WHERE userid = %s AND users.emojitype = 'message' AND guildid = %s
+            ORDER BY cnt DESC LIMIT 5;""", (str(idValue), guild_id))
         record = cursor.fetchall()
 
         # Fetch single sum value
-        cursor.execute("""SELECT SUM(cnt) FROM users WHERE userid = %s AND emojitype = 'message'""", (str(idValue),))
+        cursor.execute("""
+            SELECT SUM(cnt) FROM users WHERE userid = %s 
+            AND emojitype = 'message' AND guildid = %s""", (str(idValue), guild_id))
         emojiSum = cursor.fetchone()
         emojiSum = int(emojiSum[0])
 
@@ -292,7 +306,7 @@ class Message(commands.Cog):
         result = '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=1))
 
         # Display results
-        await ctx.send(f'{username}\'s top 5 reacts!')
+        await ctx.send(f'{username}\'s top 5 reacts in this server!')
         await ctx.send(f'{username}\'s favorite emoji: {favoriteEmoji}\n')
         await ctx.send(f'{result}')
 
@@ -311,14 +325,16 @@ class Message(commands.Cog):
             print('Error getting connection from pool')
             return
 
+        guild_id = ctx.guild.id
+
         cursor.execute("""
             SELECT reactid, SUM(cnt)
-            FROM users WHERE users.emojitype = 'message'
+            FROM users WHERE users.emojitype = 'message' AND guildid = %s
             GROUP BY reactid
-            ORDER BY SUM(cnt) DESC""")
+            ORDER BY SUM(cnt) DESC""", (guild_id, ))
         record = cursor.fetchall()
 
-        cursor.execute("""SELECT SUM(cnt) FROM users WHERE emojitype = 'message'""")
+        cursor.execute("""SELECT SUM(cnt) FROM users WHERE emojitype = 'message' AND guildid = %s""", (guild_id,))
         emojiSum = cursor.fetchone()
         emojiSum = int(emojiSum[0])
 
@@ -358,7 +374,7 @@ class Message(commands.Cog):
         result = '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=1))
 
         # Display results
-        await ctx.send(f'Full stats on overall usage of each emoji')
+        await ctx.send(f'Full stats on overall usage of each emoji in this server')
         await ctx.send(f'{result}')
 
         # Close db stuff
