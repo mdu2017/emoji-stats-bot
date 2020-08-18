@@ -37,5 +37,7 @@ Usage:
 \<option\> -'react' or 'message'
 
 Libraries used:
+
 discord.py
+
 psycopg2
