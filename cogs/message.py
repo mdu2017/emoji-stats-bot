@@ -52,7 +52,7 @@ class Message(commands.Cog):
                 # Check if data exists
                 cursor.execute("""
                     SELECT userid, reactid FROM users
-                    WHERE userid = $1 AND reactid = $2 AND emojitype = 'message'""", userid, item)
+                    WHERE userid = %s AND reactid = %s AND emojitype = 'message'""", (userid, item))
                 existingData = cursor.fetchall()
 
                 # Handle user data and commit
@@ -60,27 +60,27 @@ class Message(commands.Cog):
                     # print('Successfully adding custom emoji in msg')
                     cursor.execute("""
                         INSERT INTO users(userid, reactid, cnt, emojitype)
-                        VALUES ($1, $2, 1, 'message')""", userid, item)
+                        VALUES (%s, %s, 1, 'message')""", (userid, item))
                 else:
                     # print(f'Custom emoji exists, updating entry')
                     cursor.execute("""
                         UPDATE users SET cnt = cnt + 1
-                        WHERE emojitype = 'message' AND userid = $1 AND reactid = $2""", userid, item)
+                        WHERE emojitype = 'message' AND userid = %s AND reactid = %s""", (userid, item))
                 conn.commit()
 
                 # Handle channel data and commit
                 cursor.execute("""
                         SELECT chname, reactid FROM channel
-                        WHERE chname = $1 AND reactid = $2 AND emojitype = 'message'""", channel_name, item)
+                        WHERE chname = %s AND reactid = %s AND emojitype = 'message'""", (channel_name, item))
                 chData = cursor.fetchall()
                 if len(chData) == 0:
-                    await self.client.pg_con.execute("""
+                    cursor.execute("""
                         INSERT INTO channel(chname, reactid, cnt, emojitype)
-                        VALUES ($1, $2, 1, 'message')""", channel_name, item)
+                        VALUES (%s, %s, 1, 'message')""", (channel_name, item))
                 else:
-                    await self.client.pg_con.execute("""
+                    cursor.execute("""
                         UPDATE channel SET cnt = cnt + 1
-                        WHERE emojitype = 'message' AND chname = $1 AND reactid = $2""", channel_name, item)
+                        WHERE emojitype = 'message' AND chname = %s AND reactid = %s""", (channel_name, item))
                 conn.commit()
 
         # Query unicode emojis into users db
@@ -90,34 +90,34 @@ class Message(commands.Cog):
                 # Handle user data
                 cursor.execute("""
                         SELECT userid, reactid FROM users
-                        WHERE userid = $1 AND reactid = $2 AND emojitype = 'message'""", userid, item)
+                        WHERE userid = %s AND reactid = %s AND emojitype = 'message'""", (userid, item))
                 existingData = cursor.fetchall()
                 if len(existingData) == 0:
                     # print('Successfully adding unicode emoji in msg')
                     cursor.execute("""
                         INSERT INTO users(userid, reactid, cnt, emojitype)
-                        VALUES ($1, $2, 1, 'message')""", userid, item)
+                        VALUES (%s, %s, 1, 'message')""", (userid, item))
                 else:
                     # print('Unicode emoji exists, updating entry')
                     cursor.execute("""
                         UPDATE users SET cnt = cnt + 1
-                        WHERE emojitype = 'message' AND userid = $1 AND reactid = $2""", userid, item)
+                        WHERE emojitype = 'message' AND userid = %s AND reactid = %s""", (userid, item))
                 conn.commit()
 
                 # Handle channel data
                 cursor.execute("""
                         SELECT chname, reactid FROM channel
-                        WHERE chname = $1 AND reactid = $2 AND emojitype = 'message'""", channel_name, item)
+                        WHERE chname = %s AND reactid = %s AND emojitype = 'message'""", (channel_name, item))
                 chData = cursor.fetchall()
 
                 if len(chData) == 0:
                     cursor.execute("""
                         INSERT INTO channel(chname, reactid, cnt, emojitype)
-                        VALUES ($1, $2, 1, 'message')""", channel_name, item)
+                        VALUES (%s, %s, 1, 'message')""", (channel_name, item))
                 else:
                     cursor.execute("""
                         UPDATE channel SET cnt = cnt + 1
-                        WHERE emojitype = 'message' AND chname = $1 AND reactid = $2""", channel_name, item)
+                        WHERE emojitype = 'message' AND chname = %s AND reactid = %s""", (channel_name, item))
                 conn.commit()
 
         cursor.close()  # Close cursor
@@ -146,8 +146,13 @@ class Message(commands.Cog):
             WHERE users.emojitype = 'message'
             GROUP BY reactid
             ORDER BY SUM(cnt) DESC
-            LIMIT $1""", amt)
+            LIMIT %s""", [amt])
         record = cursor.fetchall()
+
+        # Check empty query
+        if len(record) == 0:
+            await ctx.send('No emoji data found')
+            return
 
         # Fetch single sum value by message
         cursor.execute("""SELECT SUM(cnt) FROM users WHERE emojitype = 'message'""")
@@ -241,13 +246,13 @@ class Message(commands.Cog):
         # Leave off userid to fit into dictionary
         cursor.execute("""
             SELECT reactid, cnt FROM users
-            WHERE userid = $1
+            WHERE userid = (%s)
             AND users.emojitype = 'message'
             ORDER BY cnt DESC LIMIT 5;""", idValue)
         record = cursor.fetchall()
 
         # Fetch single sum value
-        cursor.execute("""SELECT SUM(cnt) FROM users WHERE userid = $1 AND emojitype = 'message'""", idValue)
+        cursor.execute("""SELECT SUM(cnt) FROM users WHERE userid = (%s) AND emojitype = 'message'""", idValue)
         emojiSum = cursor.fetchone()
         emojiSum = int(emojiSum[0])
 
