@@ -13,17 +13,17 @@ class General(commands.Cog):
         print('General Cog Ready')
 
         # Creates the tables in the database
-        await self.client.pg_con.execute("""
+        await dbcon.execute("""
             CREATE TABLE IF NOT EXISTS channel (
                 chname    VARCHAR(50),
-                reactid   TEXT, 
+                reactid   TEXT,
                 cnt       int,
                 emojitype VARCHAR(20),
                 PRIMARY KEY(chname, reactid, emojitype)
                 )
         """)
 
-        await self.client.pg_con.execute("""
+        await dbcon.execute("""
         CREATE TABLE IF NOT EXISTS users(
             userid VARCHAR(100) NOT NULL,
             reactid TEXT,

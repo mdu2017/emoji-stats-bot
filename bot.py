@@ -8,14 +8,14 @@ client = commands.Bot(command_prefix='.')
 
 
 # Create connection pool
-async def create_db_pool():
-    client.pg_con = await asyncpg.create_pool(
-        host=db_host,
-        database=db,
-        user=db_user,
-        password=pswd,
-        ssl=True,
-    )
+# async def create_db_pool():
+#     client.pg_con = await asyncpg.create_pool(
+#         host=db_host,
+#         database=db,
+#         user=db_user,
+#         password=pswd,
+#         ssl=True,
+#     )
 
 
 @client.command(brief='(ex: .load <cogName>)')
@@ -51,5 +51,5 @@ async def on_ready():
     # await loadEmotes(client)
 
 
-client.loop.run_until_complete(create_db_pool())  # Keep db pool open
+# client.loop.run_until_complete(create_db_pool())  # Keep db pool open
 client.run(token)  # token from text file

@@ -3,12 +3,21 @@ from itertools import cycle
 
 # Database credentials
 # pswd = open('passwd.txt', 'r').read()
+import asyncpg
+
 infoFile = open('db.txt', 'r')
 db_host = infoFile.readline()
 db = infoFile.readline()
 db_user = infoFile.readline()
 pswd = infoFile.readline()
 
+
+dbcon = await asyncpg.connect(
+        host=db_host,
+        database=db,
+        user=db_user,
+        password=pswd
+)
 
 # read token from txt file
 token = open("token.txt", "r").read()
