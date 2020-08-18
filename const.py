@@ -1,39 +1,34 @@
 import unicodedata
 from itertools import cycle
+import psycopg2
+from psycopg2 import pool
+
+# Setup db connection at start
+ps_pool = psycopg2.pool.SimpleConnectionPool(
+        1, 20,
+        user='tjazufgdgelrwg',
+        password='52f31cc400aefb9dbb0dc7b88c71f8fb6ed9ffc515dc65617e9aad9dae92aa1d',
+        host='ec2-54-158-122-162.compute-1.amazonaws.com',
+        port='5432',
+        database='d66tlan8f3srnu'
+    )
+
+if ps_pool:
+    print('Connection successful')
+else:
+    print('error bad connection')
 
 # Database credentials
 # pswd = open('passwd.txt', 'r').read()
-import asyncpg
-
-infoFile = open('db.txt', 'r')
-db_host = infoFile.readline()
-db = infoFile.readline()
-db_user = infoFile.readline()
-pswd = infoFile.readline()
 
 # read token from txt file
 token = open("token.txt", "r").read()
-
-# map for list of custom emojis in your server
-emoji_list = dict()
-
-# fp1 = open('yourProfilePic.jpg/png', 'rb')
-# pfp1 = fp1.read()
 
 # Various statuses for the bot
 custom_status = cycle([f'Watching YouTube', f'Eating', f'Nap Time', f'.stats', 'Help'])
 
 # Channels to disable bot commands for
 rm_channels = []
-
-
-# Loads a list of custom emojis for use
-# async def loadEmotes(client):
-#     for guild in client.guilds:
-#         for emoji in guild.emojis:
-#             emoji_list.setdefault(emoji.name, emoji)
-
-    # NOTE: to get your emojis, call emojiList.get('emojiname')
 
 def handleSpecialEmojis(key):
     name = 'EMOJI'

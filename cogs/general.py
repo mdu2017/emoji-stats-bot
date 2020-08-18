@@ -12,26 +12,6 @@ class General(commands.Cog):
         self.change_status.start()  # Changes status periodically
         print('General Cog Ready')
 
-        # Creates the tables in the database
-        await self.client.pg_con.execute("""
-            CREATE TABLE IF NOT EXISTS channel (
-                chname    VARCHAR(50),
-                reactid   TEXT,
-                cnt       int,
-                emojitype VARCHAR(20),
-                PRIMARY KEY(chname, reactid, emojitype)
-                )
-        """)
-
-        await self.client.pg_con.execute("""
-        CREATE TABLE IF NOT EXISTS users(
-            userid VARCHAR(100) NOT NULL,
-            reactid TEXT,
-            cnt		INT,
-            emojitype VARCHAR(20),
-            PRIMARY KEY(userid, reactid, emojitype))
-        """)
-
     @commands.Cog.listener()
     async def on_member_join(self, member):  # method expected by client. This runs once when connected
         print(f'{member} has joined the server')  # notification of login.
@@ -47,8 +27,6 @@ class General(commands.Cog):
 
     # Overrides inherited cog_check method (Check before executing any commands)
     async def cog_check(self, ctx):
-
-        # print(rm_channels)
 
         # If bot is disabled in the specified channel, don't execute command
         if ctx.channel.name in rm_channels:

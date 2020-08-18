@@ -3,7 +3,7 @@ from discord.ext import commands
 from emoji import UNICODE_EMOJI
 import regex
 import re
-from const import handleSpecialEmojis
+from const import *
 
 
 class Message(commands.Cog):
@@ -13,9 +13,6 @@ class Message(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         print('Message cog ready')
-
-    # async def cog_check(self, ctx):
-    #     if
 
     # Handles when messages are sent in the channel
     @commands.Cog.listener()  # Cog on_message automatically runs comands once
@@ -28,6 +25,14 @@ class Message(commands.Cog):
         ctx = await self.client.get_context(message)
         channel_name = message.channel.name  # TODO: Add channel info to queries
         msg = message.content
+
+        # Get db connection and check
+        conn = ps_pool.getconn()
+        if conn:
+            cursor = conn.cursor()
+        else:
+            print('Error getting connection from pool')
+            return
 
         userid = str(message.author.id)  # Store as string in DB
 
@@ -45,28 +50,30 @@ class Message(commands.Cog):
         if len(custom_emojis) > 0:
             for item in custom_emojis:
                 # Check if data exists
-                existingData = await self.client.pg_con.fetch("""
+                cursor.execute("""
                     SELECT userid, reactid FROM users
                     WHERE userid = $1 AND reactid = $2 AND emojitype = 'message'""", userid, item)
+                existingData = cursor.fetchall()
 
-                chData = await self.client.pg_con.fetch("""
-                    SELECT chname, reactid FROM channel
-                    WHERE chname = $1 AND reactid = $2 AND emojitype = 'message'""", channel_name, item)
-
-                # Handle user data
-                if not existingData:
+                # Handle user data and commit
+                if len(existingData) == 0:
                     # print('Successfully adding custom emoji in msg')
-                    await self.client.pg_con.execute("""
+                    cursor.execute("""
                         INSERT INTO users(userid, reactid, cnt, emojitype)
                         VALUES ($1, $2, 1, 'message')""", userid, item)
                 else:
                     # print(f'Custom emoji exists, updating entry')
-                    await self.client.pg_con.execute("""
+                    cursor.execute("""
                         UPDATE users SET cnt = cnt + 1
                         WHERE emojitype = 'message' AND userid = $1 AND reactid = $2""", userid, item)
+                conn.commit()
 
-                # Handle channel data
-                if not chData:
+                # Handle channel data and commit
+                cursor.execute("""
+                        SELECT chname, reactid FROM channel
+                        WHERE chname = $1 AND reactid = $2 AND emojitype = 'message'""", channel_name, item)
+                chData = cursor.fetchall()
+                if len(chData) == 0:
                     await self.client.pg_con.execute("""
                         INSERT INTO channel(chname, reactid, cnt, emojitype)
                         VALUES ($1, $2, 1, 'message')""", channel_name, item)
@@ -74,39 +81,48 @@ class Message(commands.Cog):
                     await self.client.pg_con.execute("""
                         UPDATE channel SET cnt = cnt + 1
                         WHERE emojitype = 'message' AND chname = $1 AND reactid = $2""", channel_name, item)
+                conn.commit()
 
         # Query unicode emojis into users db
         if len(unimojis) > 0:
             for item in unimojis:
-                existingData = await self.client.pg_con.fetch("""
-                    SELECT userid, reactid FROM users
-                    WHERE userid = $1 AND reactid = $2 AND emojitype = 'message'""", userid, item)
-
-                chData = await self.client.pg_con.fetch("""
-                                    SELECT chname, reactid FROM channel
-                                    WHERE chname = $1 AND reactid = $2 AND emojitype = 'message'""", channel_name, item)
 
                 # Handle user data
-                if not existingData:
+                cursor.execute("""
+                        SELECT userid, reactid FROM users
+                        WHERE userid = $1 AND reactid = $2 AND emojitype = 'message'""", userid, item)
+                existingData = cursor.fetchall()
+                if len(existingData) == 0:
                     # print('Successfully adding unicode emoji in msg')
-                    await self.client.pg_con.execute("""
+                    cursor.execute("""
                         INSERT INTO users(userid, reactid, cnt, emojitype)
                         VALUES ($1, $2, 1, 'message')""", userid, item)
                 else:
                     # print('Unicode emoji exists, updating entry')
-                    await self.client.pg_con.execute("""
+                    cursor.execute("""
                         UPDATE users SET cnt = cnt + 1
                         WHERE emojitype = 'message' AND userid = $1 AND reactid = $2""", userid, item)
+                conn.commit()
 
                 # Handle channel data
-                if not chData:
-                    await self.client.pg_con.execute("""
+                cursor.execute("""
+                        SELECT chname, reactid FROM channel
+                        WHERE chname = $1 AND reactid = $2 AND emojitype = 'message'""", channel_name, item)
+                chData = cursor.fetchall()
+
+                if len(chData) == 0:
+                    cursor.execute("""
                         INSERT INTO channel(chname, reactid, cnt, emojitype)
                         VALUES ($1, $2, 1, 'message')""", channel_name, item)
                 else:
-                    await self.client.pg_con.execute("""
+                    cursor.execute("""
                         UPDATE channel SET cnt = cnt + 1
                         WHERE emojitype = 'message' AND chname = $1 AND reactid = $2""", channel_name, item)
+                conn.commit()
+
+        cursor.close()  # Close cursor
+        ps_pool.putconn(conn)   # Close connection
+
 
     # Returns the top 5 most used emojis in messages
     @commands.command(brief='Display overall stats for emojis used in messages')
@@ -116,19 +132,29 @@ class Message(commands.Cog):
             await ctx.send(f'Error: enter an amount between 1-20')
             return
 
-        await ctx.send(f'The {amt} most used emojis in messages!')
+        # Get db connection and check
+        conn = ps_pool.getconn()
+        if conn:
+            cursor = conn.cursor()
+        else:
+            print('Error getting connection from pool')
+            return
 
         # Grabs top 5 most used reacts in messages
-        record = await self.client.pg_con.fetch("""
-                    SELECT reactid, SUM(cnt) FROM users
-                    WHERE users.emojitype = 'message'
-                    GROUP BY reactid
-                    ORDER BY SUM(cnt) DESC
-                    LIMIT $1""", amt)
+        cursor.execute("""
+            SELECT reactid, SUM(cnt) FROM users
+            WHERE users.emojitype = 'message'
+            GROUP BY reactid
+            ORDER BY SUM(cnt) DESC
+            LIMIT $1""", amt)
+        record = cursor.fetchall()
 
         # Fetch single sum value by message
-        emojiSum = await self.client.pg_con.fetchval("""
-                        SELECT SUM(cnt) FROM users WHERE emojitype = 'message'""")
+        cursor.execute("""SELECT SUM(cnt) FROM users WHERE emojitype = 'message'""")
+        emojiSum = cursor.fetchone()
+        emojiSum = int(emojiSum[0])
+
+        # TODO: Continue refactoring new psycopg2 library queries
 
         # Assuming that record gives rows of exactly 2 columns
         data = dict(record)  # convert record to dictionary
@@ -167,7 +193,12 @@ class Message(commands.Cog):
         result = '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=1))
 
         # Display results
+        await ctx.send(f'The {amt} most used emojis in messages!')
         await ctx.send(f'{result}')
+
+        # Close db stuff
+        cursor.close()
+        ps_pool.putconn(conn)
 
     @commands.command(brief='Displays most used emojis in messages by user')
     async def useremojis(self, ctx, user_name=''):
@@ -197,19 +228,28 @@ class Message(commands.Cog):
             await ctx.send(f'User {user_name} was not found')
             return
 
+        # Get db connection and check
+        conn = ps_pool.getconn()
+        if conn:
+            cursor = conn.cursor()
+        else:
+            print('Error getting connection from pool')
+            return
+
         idValue = str(userID)
 
         # Leave off userid to fit into dictionary
-        record = await self.client.pg_con.fetch("""
-                        SELECT reactid, cnt FROM users
-                        WHERE userid = $1
-                        AND users.emojitype = 'message'
-                        ORDER BY cnt DESC LIMIT 5;""", idValue)
+        cursor.execute("""
+            SELECT reactid, cnt FROM users
+            WHERE userid = $1
+            AND users.emojitype = 'message'
+            ORDER BY cnt DESC LIMIT 5;""", idValue)
+        record = cursor.fetchall()
 
         # Fetch single sum value
-        emojiSum = await self.client.pg_con.fetchval("""
-                        SELECT SUM(cnt) FROM users
-                        WHERE userid = $1 AND emojitype = 'message'""", idValue)
+        cursor.execute("""SELECT SUM(cnt) FROM users WHERE userid = $1 AND emojitype = 'message'""", idValue)
+        emojiSum = cursor.fetchone()
+        emojiSum = int(emojiSum[0])
 
         data = dict(record)  # convert record to dictionary
         finalList = []
@@ -252,15 +292,31 @@ class Message(commands.Cog):
         await ctx.send(f'{username}\'s favorite emoji: {favoriteEmoji}\n')
         await ctx.send(f'{result}')
 
+        # Close db stuff
+        cursor.close()
+        ps_pool.putconn(conn)
+
     @commands.command(brief='Stat for every emoji used in messages')
     async def fullmsgstats(self, ctx):
-        record = await self.client.pg_con.fetch("""
+
+        # Get db connection and check
+        conn = ps_pool.getconn()
+        if conn:
+            cursor = conn.cursor()
+        else:
+            print('Error getting connection from pool')
+            return
+
+        cursor.execute("""
             SELECT reactid, SUM(cnt)
             FROM users WHERE users.emojitype = 'message'
             GROUP BY reactid
             ORDER BY SUM(cnt) DESC""")
+        record = cursor.fetchall()
 
-        emojiSum = await self.client.pg_con.fetchval("""SELECT SUM(cnt) FROM users WHERE emojitype = 'message'""")
+        cursor.execute("""SELECT SUM(cnt) FROM users WHERE emojitype = 'message'""")
+        emojiSum = cursor.fetchone()
+        emojiSum = int(emojiSum[0])
 
         data = dict(record)
         finalList = []
@@ -300,6 +356,10 @@ class Message(commands.Cog):
         # Display results
         await ctx.send(f'Full stats on overall usage of each emoji')
         await ctx.send(f'{result}')
+
+        # Close db stuff
+        cursor.close()
+        ps_pool.putconn(conn)
 
 
 def setup(client):
