@@ -1,4 +1,0 @@
-ec2-54-158-122-162.compute-1.amazonaws.com
-d66tlan8f3srnu
-tjazufgdgelrwg
-52f31cc400aefb9dbb0dc7b88c71f8fb6ed9ffc515dc65617e9aad9dae92aa1d
