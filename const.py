@@ -12,7 +12,7 @@ db_user = infoFile.readline()
 pswd = infoFile.readline()
 
 
-dbcon = await asyncpg.connect(
+dbcon = await asyncpg.create_pool(
         host=db_host,
         database=db,
         user=db_user,
