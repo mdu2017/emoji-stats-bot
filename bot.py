@@ -49,6 +49,13 @@ async def on_ready():
     print('Main file ready, loading emotes')
     # await loadEmotes(client)
 
+    client.pg_con = await asyncpg.connect(
+        host=db_host,
+        database=db,
+        user=db_user,
+        password=pswd
+    )
 
-client.loop.run_until_complete(create_db_pool())  # Keep db pool open
+
+# client.loop.run_until_complete(create_db_pool())  # Keep db pool open
 client.run(token)  # token from text file
