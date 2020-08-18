@@ -9,7 +9,7 @@ client = commands.Bot(command_prefix='.')
 
 # Create connection pool
 async def create_db_pool():
-    client.pg_con = await asyncpg.create_pool(
+    client.pg_con = await asyncpg.connect(
         host=db_host,
         database=db,
         user=db_user,
