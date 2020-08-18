@@ -1,8 +1,6 @@
-# Channel Stats (Most popular reaction for each channel. Most popular emoji for each channel)
 import discord
 from discord.ext import commands
-import re
-from const import handleSpecialEmojis
+from const import *
 
 
 class Channel(commands.Cog):
@@ -14,7 +12,8 @@ class Channel(commands.Cog):
         print('Channel cog ready')
 
     # Top 3 most popular emojis for reactions/messages for a channel (optional type)
-    @commands.command(brief='Top 3 emojis for reactions/messages')
+    @commands.command(brief='''Top 3 emojis for reactions/messages 
+                            (.channelstats OR.channelstats <channel_name> <option=message,react>)''')
     async def channelstats(self, ctx, ch='', option='message'):
         channel_name = None
 
@@ -37,19 +36,41 @@ class Channel(commands.Cog):
             await ctx.send(f'<option>(s) are: \'react\' OR \'message\'\nUsage: .channelstats <channel_name> <option>')
             return
 
+        # Used in formatted print
         if option == 'react':
             typeStr = 'reactions'
         else:
             typeStr = 'emojis'
 
+        # Get db connection and check
+        conn = ps_pool.getconn()
+        if conn:
+            cursor = conn.cursor()
+        else:
+            print('Error getting connection from pool')
+            return
+
+        guild_id = ctx.guild.id
+
         # Grab top 3 most used emojis in a channel
-        record = await self.client.pg_con.fetch("""
+        cursor.execute("""
             SELECT reactid, cnt FROM channel
-            WHERE channel.chname = $1 AND emojitype = $2
-            ORDER BY cnt DESC LIMIT 3""", channel_name, option)
-        emojiSum = await self.client.pg_con.fetchval("""
-            SELECT SUM(cnt) FROM channel
-            WHERE channel.chname = $1 AND emojitype = $2""", channel_name, option)
+            WHERE channel.chname = %s AND emojitype = %s AND guildid = %s
+            ORDER BY cnt DESC LIMIT 3""", (channel_name, option, guild_id))
+        record = cursor.fetchall()
+
+        # Check for empty data
+        if len(record) == 0:
+            await ctx.send(f'No emoji data available for [#{channel_name}]')
+            return
+
+        # Grab total count of used emojis
+        cursor.execute("""
+            SELECT SUM(cnt) FROM channel 
+            WHERE channel.chname = %s AND emojitype = %s
+            AND guildid = %s""", (channel_name, option, guild_id))
+        emojiSum = cursor.fetchone()
+        emojiSum = int(emojiSum[0])
 
         data = dict(record)
         finalList = []
@@ -81,24 +102,92 @@ class Channel(commands.Cog):
                 finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times in [#{channel_name}] '
                                  f'| {percentage}% of {typeStr} used in [#{channel_name}]')
 
-        # Check for empty data
-        if len(finalList) == 0:
-            await ctx.send(f'No emoji data available for [#{channel_name}]')
-            return
 
         result = '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=1))
 
         await ctx.send(f'Top 3 {typeStr} used in [#{channel_name}]: \n {result}')
 
+        cursor.close()  # Close cursor
+        ps_pool.putconn(conn)  # Close connection
+
     # TODO (enhancement): Get most used emojis in the last week/month/day/year, etc.
-    @commands.command(brief='Most used emojis in the last <week/month/day/year>')
-    async def recentchstats(self, ctx):
-        print()
+    # @commands.command(brief='Most used emojis in the last <week/month/day/year>')
+    # async def recentchstats(self, ctx):
+    #     print()
 
-    @commands.command(brief='display most popular emojis/reactions for every channel, if possible')
+    @commands.command(brief='display most popular emojis/reaction for each channel if available (.fullchstats)')
     async def fullchstats(self, ctx):
-        print('todo')
 
+        # Get db connection and check
+        conn = ps_pool.getconn()
+        if conn:
+            cursor = conn.cursor()
+        else:
+            print('Error getting connection from pool')
+            return
+
+        guild_id = ctx.guild.id
+
+        sqlReacts = """SELECT c1.chname, c1.reactid, c1.cnt
+            FROM channel as c1, (SELECT chname, MAX(cnt) FROM channel
+                WHERE emojitype = 'react' AND guildid = %s GROUP BY chname) AS c2
+            WHERE c1.chname = c2.chname AND c1.cnt = c2.max AND c1.emojitype = 'react' AND c1.guildid = %s
+            ORDER BY c1.cnt DESC;"""
+        sqlEmojis = """SELECT c1.chname, c1.reactid, c1.cnt
+            FROM channel as c1, (SELECT chname, MAX(cnt) FROM channel
+                WHERE emojitype = 'message' AND guildid = %s GROUP BY chname) AS c2
+            WHERE c1.chname = c2.chname AND c1.cnt = c2.max AND c1.emojitype = 'message' AND c1.guildid = %s
+            ORDER BY c1.cnt DESC;"""
+
+        # Gather reaction data
+        cursor.execute(sqlReacts, (guild_id, guild_id))
+        reactData = cursor.fetchall()
+
+        # Gather emoji data
+        cursor.execute(sqlEmojis, (guild_id, guild_id))
+        emojiData = cursor.fetchall()
+
+        if len(reactData) == 0 and len(emojiData) == 0:
+            await ctx.send('No reaction or emoji data available')
+            return
+
+        filteredList = dict()   #Key to list of formatted strings (channel name -> f'emoji, cnt')
+
+        # Add reaction data filtered list
+        for tup in reactData:
+            chname = tup[0]
+            emoji = tup[1]
+            cnt = tup[2]
+
+            # If channel name exists, add the reaction
+            if chname not in filteredList:
+                filteredList[chname] = list()
+
+            filteredList[chname].append(f'Most used reaction: {emoji} - used ({cnt}) times\n\n')
+
+        # Add emoji data to filtered list
+        for tup in emojiData:
+            chname = tup[0]
+            emoji = tup[1]
+            cnt = tup[2]
+
+            # If channel name exists, add the emoji
+            if chname not in filteredList:
+                filteredList[chname] = list()
+
+            filteredList[chname].append(f'Most used emoji: {emoji} - used ({cnt}) times\n\n')
+
+        info = ''
+        for key in filteredList:
+            info += 'Channel ' + '#' + key + '\n'
+            for tup in filteredList[key]:
+                info += tup
+            info += '\n'
+
+        await ctx.send(f'{info}')
+
+        cursor.close()  # Close cursor
+        ps_pool.putconn(conn)  # Close connection
 
 def setup(client):
     client.add_cog(Channel(client))

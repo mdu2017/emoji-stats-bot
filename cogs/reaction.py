@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from const import handleSpecialEmojis
+from const import *
 
 
 class Reaction(commands.Cog):
@@ -15,42 +15,60 @@ class Reaction(commands.Cog):
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
         channel_name = reaction.message.channel.name  # TODO: Add channel info to queries
-        msg = reaction.message.content
         userid = str(user.id)
         emojiID = reaction.emoji
-
         value = str(emojiID)  # Stringify emoji for database
 
-        # Handle user specific data table (both user and react have to exist)
-        userData = await self.client.pg_con.fetch("""
-                SELECT userid, reactid FROM users 
-                WHERE userid = $1 AND reactid = $2 AND emojitype = 'react'""", userid, value)
+        # Get db connection and check
+        conn = ps_pool.getconn()
+        if conn:
+            cursor = conn.cursor()
+        else:
+            print('Error getting connection from pool')
+            return
 
-        chData = await self.client.pg_con.fetch("""
-                        SELECT chname, reactid FROM channel 
-                        WHERE chname = $1 AND reactid = $2 AND emojitype = 'react'""", channel_name, value)
+        guild_id = reaction.message.guild.id
 
-        # Process user data
-        if not userData:
-            await self.client.pg_con.execute("""
-                    INSERT INTO users(userid, reactid, cnt, emojitype) 
-                    VALUES($1, $2, 1, 'react')""", userid, value)
+        # Handle user data if it exists
+        cursor.execute("""
+            SELECT userid, reactid FROM users
+            WHERE userid = %s AND reactid = %s 
+            AND emojitype = 'react' AND guildid = %s""", (userid, value, guild_id))
+        userData = cursor.fetchall()
+        if len(userData) == 0:
+            cursor.execute("""
+                INSERT INTO users(userid, reactid, cnt, emojitype, guildid) 
+                VALUES(%s, %s, 1, 'react', %s)""", (userid, value, guild_id))
             # print(f'successfully added -- \n')
         else:
-            await self.client.pg_con.execute("""
-                    UPDATE users SET cnt = cnt + 1 
-                    WHERE users.userid = $1 AND users.reactid = $2 AND emojitype = 'react'""", userid, value)
+            cursor.execute("""
+                    UPDATE users SET cnt = cnt + 1
+                    WHERE users.userid = %s AND users.reactid = %s 
+                    AND emojitype = 'react' AND guildid = %s""", (userid, value, guild_id))
             # print(f'successfully updated -- \n')
+        conn.commit()
 
         # Process channel data
-        if not chData:
-            await self.client.pg_con.execute("""
-                INSERT INTO channel(chname, reactid, cnt, emojitype) 
-                VALUES($1, $2, 1, 'react')""", channel_name, value)
+        cursor.execute("""
+            SELECT chname, reactid FROM channel
+            WHERE chname = %s AND reactid = %s 
+            AND emojitype = 'react' AND guildid = %s""", (channel_name, value, guild_id))
+        chData = cursor.fetchall()
+        if len(chData) == 0:
+            cursor.execute("""
+                INSERT INTO channel(chname, reactid, cnt, emojitype, guildid)
+                VALUES(%s, %s, 1, 'react', %s)""", (channel_name, value, guild_id))
+            # print('Channel reaction added')
         else:
-            await self.client.pg_con.execute("""
+            cursor.execute("""
                 UPDATE channel SET cnt = cnt + 1
-                WHERE chname = $1 AND reactid = $2 AND emojitype = 'react'""", channel_name, value)
+                WHERE chname = %s AND reactid = %s 
+                AND emojitype = 'react' AND guildid = %s""", (channel_name, value, guild_id))
+            # print('Channel reaction updated')
+        conn.commit()
+
+        cursor.close()  # Close cursor
+        ps_pool.putconn(conn)  # Close connection
 
 
     # Handles processing when reaction is removed from a message
@@ -61,66 +79,106 @@ class Reaction(commands.Cog):
         emojiID = reaction.emoji
         value = str(emojiID)  # Stringify emoji for database
 
-        # Handle user data
-        userData = await self.client.pg_con.fetch("""
-                SELECT userid, reactid FROM users 
-                WHERE userid = $1 AND reactid = $2 AND emojitype = 'react'""", userid, value)
-        if userData:
-            await self.client.pg_con.execute("""UPDATE users SET cnt = cnt - 1 
-                    WHERE users.userid = $1 
-                    AND users.reactid = $2 
-                    AND cnt > 0 AND users.emojitype = 'react'""", userid, value)
-            # print(f'Successfully removed -- \n')
+        # Get db connection and check
+        conn = ps_pool.getconn()
+        if conn:
+            cursor = conn.cursor()
+        else:
+            print('Error getting connection from pool')
+            return
 
-        # Handle channel data
-        chData = await self.client.pg_con.fetch("""
-                SELECT chname, reactid FROM channel 
-                WHERE chname = $1 AND reactid = $2 AND emojitype = 'react'""", channel_name, value)
-        if chData:
-            await self.client.pg_con.execute("""
+        guild_id = reaction.message.guild.id
+
+        # Handle user data if it exists
+        cursor.execute("""
+                SELECT userid, reactid FROM users
+                WHERE userid = %s AND reactid = %s 
+                AND emojitype = 'react' AND guildid = %s""", (userid, value, guild_id))
+        userData = cursor.fetchall()
+        if len(userData) > 0:
+            cursor.execute("""
+                UPDATE users SET cnt = cnt - 1
+                WHERE users.userid = %s AND users.reactid = %s 
+                AND emojitype = 'react' AND cnt > 0 AND guildid = %s""", (userid, value, guild_id))
+            # print(f'successfully updated (remove) -- \n')
+        conn.commit()
+
+        # Process channel data
+        cursor.execute("""
+                SELECT chname, reactid FROM channel
+                WHERE chname = %s AND reactid = %s 
+                AND emojitype = 'react' AND guildid = %s""", (channel_name, value, guild_id))
+        chData = cursor.fetchall()
+        if len(chData) > 0:
+            cursor.execute("""
                 UPDATE channel SET cnt = cnt - 1
-                WHERE chname = $1 AND reactid = $2 AND emojitype = 'react' AND cnt > 0""", channel_name, value)
+                WHERE chname = %s AND reactid = %s 
+                AND emojitype = 'react' AND cnt > 0 AND guildid = %s""", (channel_name, value, guild_id))
+        conn.commit()
+
+        cursor.close()  # Close cursor
+        ps_pool.putconn(conn)  # Close connection
 
     # Gets the list of most used emojis for reactions
     @commands.command(brief="""Get list of top <N> most used reacts 
-                            | Usage: .topreacts OR .topreacts <num> <mode> |
-                             Modes include 'normal', 'custom', 'unicode' """)
+        (.topreacts OR .topreacts <num> <mode=normal,custom,unicode>)""")
     async def topreacts(self, ctx, amt=5, mode='normal'):
         # Handle invalid amount
         if amt < 1 or amt > 15:
             await ctx.send(f'Error: enter an amount between 1-20')
             return
 
+        record = None
+
+        # Get db connection and check
+        conn = ps_pool.getconn()
+        if conn:
+            cursor = conn.cursor()
+        else:
+            print('Error getting connection from pool')
+            return
+
+        guild_id = ctx.guild.id
+
         if mode == 'custom':
-            await ctx.send(f'Overall top {amt} most popular reacts! (custom emojis)')
-            record = await self.client.pg_con.fetch("""
+            await ctx.send(f'Overall top {amt} most popular reacts in this server! (custom emojis)')
+            cursor.execute("""
                 SELECT reactid, SUM(cnt) FROM users
-                WHERE users.emojitype = 'react' AND reactid LIKE '<%'
-                GROUP BY reactid
-                ORDER BY SUM(cnt) DESC
-                LIMIT $1""", amt)
+                WHERE users.emojitype = 'react' AND reactid LIKE '<%%' AND guildid = %s
+                GROUP BY reactid ORDER BY SUM(cnt) DESC
+                LIMIT (%s)""", (guild_id, amt))
+            record = cursor.fetchall()
         elif mode == 'unicode':
-            await ctx.send(f'Overall top {amt} most popular reacts! (Unicode emojis)')
-            record = await self.client.pg_con.fetch("""
+            await ctx.send(f'Overall top {amt} most popular reacts in this server! (Unicode emojis)')
+            cursor.execute("""
                 SELECT reactid, SUM(cnt) FROM users
-                WHERE users.emojitype = 'react' AND reactid NOT LIKE '<%'
+                WHERE users.emojitype = 'react' AND reactid NOT LIKE '<%%' AND guildid = %s
                 GROUP BY reactid
                 ORDER BY SUM(cnt) DESC
-                LIMIT $1""", amt)
+                LIMIT (%s)""", (guild_id, amt))
+            record = cursor.fetchall()
         else:
             # Grabs top X most used reacts by type
             if mode == 'normal':
-                await ctx.send(f'Overall top {amt} most popular reacts!')
-                record = await self.client.pg_con.fetch("""
-                SELECT reactid, SUM(cnt) FROM users
-                WHERE users.emojitype = 'react'
-                GROUP BY reactid
-                ORDER BY SUM(cnt) DESC
-                LIMIT $1""", amt)
+                await ctx.send(f'Overall top {amt} most popular reacts in this server!')
+                cursor.execute("""
+                    SELECT reactid, SUM(cnt) FROM users
+                    WHERE users.emojitype = 'react' AND guildid = %s
+                    GROUP BY reactid
+                    ORDER BY SUM(cnt) DESC
+                    LIMIT %s""", (guild_id, amt))
+                record = cursor.fetchall()
+
+        if len(record) == 0:
+            await ctx.send(f'No reaction data available')
+            return
 
         # Fetch single sum value
-        emojiSum = await self.client.pg_con.fetchval(
-            """SELECT SUM(cnt) FROM users WHERE users.emojitype = 'react'""")
+        cursor.execute("""
+            SELECT SUM(cnt) FROM users 
+            WHERE users.emojitype = 'react' AND guildid = %s""", (guild_id, ))
+        emojiSum = cursor.fetchone()
+        emojiSum = int(emojiSum[0])
 
         # Assuming that record gives rows of exactly 2 columns
         data = dict(record)  # convert record to dictionary
@@ -152,11 +210,13 @@ class Reaction(commands.Cog):
                 finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times | {percentage}% of all reacts.')
 
         result = '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=1))
-
         await ctx.send(f'{result}')
 
+        cursor.close()  # Close cursor
+        ps_pool.putconn(conn)  # Close connection
+
     # Gets a list of reacts by user (Can use nickname or mention)
-    @commands.command(brief='Get list of top 10 most used reacts by user')
+    @commands.command(brief='Get list of top 10 most used reacts by user (.userreacts <@username/nickname>')
     async def userreacts(self, ctx, arg1=''):
         user = None
         username = None
@@ -189,19 +249,35 @@ class Reaction(commands.Cog):
             await ctx.send(f'Error: user {arg1} was not found')
             return
 
-        idValue = str(userID)
+        # Get db connection and check
+        conn = ps_pool.getconn()
+        if conn:
+            cursor = conn.cursor()
+        else:
+            print('Error getting connection from pool')
+            return
 
-        # Leave off userid to fit into dictionary
-        record = await self.client.pg_con.fetch("""
-                SELECT reactid, cnt FROM users
-                WHERE userid = $1
-                AND users.emojitype = 'react'
-                ORDER BY cnt DESC LIMIT 5;""", idValue)
+        guild_id = ctx.guild.id
+
+        sqlString = """
+            SELECT reactid, cnt FROM users
+            WHERE userid = %s AND guildid = %s
+            AND users.emojitype = 'react'
+            ORDER BY cnt DESC LIMIT 5;"""
+
+        cursor.execute(sqlString, (str(userID), guild_id))
+        record = cursor.fetchall()
+
+        # Check for empty record
+        if len(record) == 0:
+            await ctx.send(f'{username}\'s reaction list is empty!')
+            return
 
         # Fetch single sum value
-        emojiSum = await self.client.pg_con.fetchval("""
-                SELECT SUM(cnt) FROM users 
-                WHERE userid = $1 AND emojitype = 'react'""", idValue)
+        sumSql = """SELECT SUM(cnt) FROM users WHERE userid = %s AND emojitype = 'react' AND guildid = %s"""
+        cursor.execute(sumSql, (str(userID), guild_id))
+        emojiSum = cursor.fetchone()
+        emojiSum = int(emojiSum[0])
 
         data = dict(record)  # convert record to dictionary
         finalList = []
@@ -231,35 +307,46 @@ class Reaction(commands.Cog):
                 temp = handleSpecialEmojis(key)  # TODO: Some emojis won't have a name so 'EMOJI' is by default
                 finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times | {percentage}% of reacts.')
 
-        # If no reaction data from query, return empty
-        if len(finalList) == 0:
-            await ctx.send(f'{username}\'s reaction list is empty!')
-            return
-
         favoriteReact = finalList[0]
         result = '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=1))
 
         # Display results
-        await ctx.send(f'{username}\'s top 5 reacts!')
+        await ctx.send(f'{username}\'s top 5 reacts in this server!')
         await ctx.send(f'{username}\'s favorite reaction: {favoriteReact}\n')
         await ctx.send(f'{result}')
 
-    @commands.command(brief='Lists full stats for every react')
+        cursor.close()  # Close cursor
+        ps_pool.putconn(conn)  # Close connection
+
+    @commands.command(brief='Lists full stats for every react (.fullreactstats)')
     async def fullreactstats(self, ctx):
+        # Get db connection and check
+        conn = ps_pool.getconn()
+        if conn:
+            cursor = conn.cursor()
+        else:
+            print('Error getting connection from pool')
+            return
+
+        guild_id = ctx.guild.id
+
         # Grabs all reactions
-        record = await self.client.pg_con.fetch("""
-                SELECT reactid, SUM(cnt) 
-                FROM users WHERE users.emojitype = 'react'
-                GROUP BY reactid
-                ORDER BY SUM(cnt) DESC""")
+        cursor.execute("""
+            SELECT reactid, SUM(cnt)
+            FROM users WHERE users.emojitype = 'react' AND guildid = %s
+            GROUP BY reactid
+            ORDER BY SUM(cnt) DESC""", (guild_id, ))
+        record = cursor.fetchall()
 
         # Handle empty results
-        if record is None:
-            await ctx.send('No emoji data found.')
+        if len(record) == 0:
+            await ctx.send('No reaction data found.')
             return
 
         # Fetch single sum value
-        emojiSum = await self.client.pg_con.fetchval("""SELECT SUM(cnt) FROM users WHERE emojitype = 'react'""")
+        cursor.execute("""SELECT SUM(cnt) FROM users WHERE emojitype = 'react' AND guildid = %s""", (guild_id, ))
+        emojiSum = cursor.fetchone()
+        emojiSum = int(emojiSum[0])
 
         # Assuming that record gives rows of exactly 2 columns
         data = dict(record)  # convert record to dictionary
@@ -290,16 +377,14 @@ class Reaction(commands.Cog):
                 temp = handleSpecialEmojis(key)  # TODO: Some emojis won't have a name so 'EMOJI' is by default
                 finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times | {percentage}% of reacts.')
 
-        # If no reaction data from query, return empty
-        if len(finalList) == 0:
-            await ctx.send(f'No data available')
-            return
-
         result = '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=1))
 
         # Display results
-        await ctx.send(f'Full stats on overall usage of each react')
+        await ctx.send(f'Full stats of all reactions used in this server')
         await ctx.send(f'{result}')
+
+        cursor.close()  # Close cursor
+        ps_pool.putconn(conn)  # Close connection
 
 
 def setup(client):
