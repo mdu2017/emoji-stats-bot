@@ -42,20 +42,22 @@ async def on_ready():
             # Create initial tables
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS channel (
-                    chname    VARCHAR(50),
-                    reactid   TEXT,
-                    cnt       int,
-                    emojitype VARCHAR(20),
-                    PRIMARY KEY(chname, reactid, emojitype))"""
-                )
+                chname    VARCHAR(50),
+                reactid   TEXT, 
+                cnt       int,
+                emojitype VARCHAR(20),
+                guildid   BIGINT,
+                PRIMARY KEY(chname, reactid, emojitype)
+            )""")
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS users(
-                    userid VARCHAR(100) NOT NULL,
-                    reactid TEXT,
-                    cnt		INT,
-                    emojitype VARCHAR(20),
-                    PRIMARY KEY(userid, reactid, emojitype))"""
-                )
+                userid VARCHAR(100) NOT NULL,
+                reactid TEXT,
+                cnt		INT,
+                emojitype VARCHAR(20),
+                guildid   BIGINT,
+                PRIMARY KEY(userid, reactid, emojitype)
+            )""" )
             print(f'Tables created successfully')
             conn.commit()
         except Exception as e:
