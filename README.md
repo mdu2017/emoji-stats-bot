@@ -1,7 +1,7 @@
 # Emoji Stats Discord Bot
 Discord Bot that analyzes emoji usage and reactions in a Discord server.
 
-Written in Python 3
+Written in Python 3 and connected with a PostgreSQL database.
 
 Usage:
 
@@ -35,3 +35,7 @@ Usage:
 \<channel_name\> - Discord Text Channel name (no # needed)
 
 \<option\> -'react' or 'message'
+
+Libraries used:
+discord.py
+psycopg2
