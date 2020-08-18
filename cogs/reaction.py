@@ -22,33 +22,33 @@ class Reaction(commands.Cog):
         value = str(emojiID)  # Stringify emoji for database
 
         # Handle user specific data table (both user and react have to exist)
-        userData = await dbcon.fetch("""
+        userData = await self.client.pg_con.fetch("""
                 SELECT userid, reactid FROM users
                 WHERE userid = $1 AND reactid = $2 AND emojitype = 'react'""", userid, value)
 
-        chData = await dbcon.fetch("""
+        chData = await self.client.pg_con.fetch("""
                         SELECT chname, reactid FROM channel
                         WHERE chname = $1 AND reactid = $2 AND emojitype = 'react'""", channel_name, value)
 
         # Process user data
         if not userData:
-            await dbcon.execute("""
+            await self.client.pg_con.execute("""
                     INSERT INTO users(userid, reactid, cnt, emojitype)
                     VALUES($1, $2, 1, 'react')""", userid, value)
             # print(f'successfully added -- \n')
         else:
-            await dbcon.execute("""
+            await self.client.pg_con.execute("""
                     UPDATE users SET cnt = cnt + 1
                     WHERE users.userid = $1 AND users.reactid = $2 AND emojitype = 'react'""", userid, value)
             # print(f'successfully updated -- \n')
 
         # Process channel data
         if not chData:
-            await dbcon.execute("""
+            await self.client.pg_con.execute("""
                 INSERT INTO channel(chname, reactid, cnt, emojitype)
                 VALUES($1, $2, 1, 'react')""", channel_name, value)
         else:
-            await dbcon.execute("""
+            await self.client.pg_con.execute("""
                 UPDATE channel SET cnt = cnt + 1
                 WHERE chname = $1 AND reactid = $2 AND emojitype = 'react'""", channel_name, value)
 
@@ -62,22 +62,22 @@ class Reaction(commands.Cog):
         value = str(emojiID)  # Stringify emoji for database
 
         # Handle user data
-        userData = await dbcon.fetch("""
+        userData = await self.client.pg_con.fetch("""
                 SELECT userid, reactid FROM users
                 WHERE userid = $1 AND reactid = $2 AND emojitype = 'react'""", userid, value)
         if userData:
-            await dbcon.execute("""UPDATE users SET cnt = cnt - 1
+            await self.client.pg_con.execute("""UPDATE users SET cnt = cnt - 1
                     WHERE users.userid = $1
                     AND users.reactid = $2
                     AND cnt > 0 AND users.emojitype = 'react'""", userid, value)
             # print(f'Successfully removed -- \n')
 
         # Handle channel data
-        chData = await dbcon.fetch("""
+        chData = await self.client.pg_con.fetch("""
                 SELECT chname, reactid FROM channel
                 WHERE chname = $1 AND reactid = $2 AND emojitype = 'react'""", channel_name, value)
         if chData:
-            await dbcon.execute("""
+            await self.client.pg_con.execute("""
                 UPDATE channel SET cnt = cnt - 1
                 WHERE chname = $1 AND reactid = $2 AND emojitype = 'react' AND cnt > 0""", channel_name, value)
 
@@ -93,7 +93,7 @@ class Reaction(commands.Cog):
 
         if mode == 'custom':
             await ctx.send(f'Overall top {amt} most popular reacts! (custom emojis)')
-            record = await dbcon.fetch("""
+            record = await self.client.pg_con.fetch("""
                 SELECT reactid, SUM(cnt) FROM users
                 WHERE users.emojitype = 'react' AND reactid LIKE '<%'
                 GROUP BY reactid
@@ -101,7 +101,7 @@ class Reaction(commands.Cog):
                 LIMIT $1""", amt)
         elif mode == 'unicode':
             await ctx.send(f'Overall top {amt} most popular reacts! (Unicode emojis)')
-            record = await dbcon.fetch("""
+            record = await self.client.pg_con.fetch("""
                 SELECT reactid, SUM(cnt) FROM users
                 WHERE users.emojitype = 'react' AND reactid NOT LIKE '<%'
                 GROUP BY reactid
@@ -111,7 +111,7 @@ class Reaction(commands.Cog):
             # Grabs top X most used reacts by type
             if mode == 'normal':
                 await ctx.send(f'Overall top {amt} most popular reacts!')
-                record = await dbcon.fetch("""
+                record = await self.client.pg_con.fetch("""
                 SELECT reactid, SUM(cnt) FROM users
                 WHERE users.emojitype = 'react'
                 GROUP BY reactid
@@ -119,7 +119,7 @@ class Reaction(commands.Cog):
                 LIMIT $1""", amt)
 
         # Fetch single sum value
-        emojiSum = await dbcon.fetchval(
+        emojiSum = await self.client.pg_con.fetchval(
             """SELECT SUM(cnt) FROM users WHERE users.emojitype = 'react'""")
 
         # Assuming that record gives rows of exactly 2 columns
@@ -192,14 +192,14 @@ class Reaction(commands.Cog):
         idValue = str(userID)
 
         # Leave off userid to fit into dictionary
-        record = await dbcon.fetch("""
+        record = await self.client.pg_con.fetch("""
                 SELECT reactid, cnt FROM users
                 WHERE userid = $1
                 AND users.emojitype = 'react'
                 ORDER BY cnt DESC LIMIT 5;""", idValue)
 
         # Fetch single sum value
-        emojiSum = await dbcon.fetchval("""
+        emojiSum = await self.client.pg_con.fetchval("""
                 SELECT SUM(cnt) FROM users
                 WHERE userid = $1 AND emojitype = 'react'""", idValue)
 
@@ -247,7 +247,7 @@ class Reaction(commands.Cog):
     @commands.command(brief='Lists full stats for every react')
     async def fullreactstats(self, ctx):
         # Grabs all reactions
-        record = await dbcon.fetch("""
+        record = await self.client.pg_con.fetch("""
                 SELECT reactid, SUM(cnt)
                 FROM users WHERE users.emojitype = 'react'
                 GROUP BY reactid
@@ -259,7 +259,7 @@ class Reaction(commands.Cog):
             return
 
         # Fetch single sum value
-        emojiSum = await dbcon.fetchval("""SELECT SUM(cnt) FROM users WHERE emojitype = 'react'""")
+        emojiSum = await self.client.pg_con.fetchval("""SELECT SUM(cnt) FROM users WHERE emojitype = 'react'""")
 
         # Assuming that record gives rows of exactly 2 columns
         data = dict(record)  # convert record to dictionary

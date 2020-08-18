@@ -43,11 +43,11 @@ class Channel(commands.Cog):
             typeStr = 'emojis'
 
         # Grab top 3 most used emojis in a channel
-        record = await dbcon.fetch("""
+        record = await self.client.pg_con.fetch("""
             SELECT reactid, cnt FROM channel
             WHERE channel.chname = $1 AND emojitype = $2
             ORDER BY cnt DESC LIMIT 3""", channel_name, option)
-        emojiSum = await dbcon.fetchval("""
+        emojiSum = await self.client.pg_con.fetchval("""
             SELECT SUM(cnt) FROM channel
             WHERE channel.chname = $1 AND emojitype = $2""", channel_name, option)
 

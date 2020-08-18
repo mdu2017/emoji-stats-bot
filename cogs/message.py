@@ -45,66 +45,66 @@ class Message(commands.Cog):
         if len(custom_emojis) > 0:
             for item in custom_emojis:
                 # Check if data exists
-                existingData = await dbcon.fetch("""
+                existingData = await self.client.pg_con.fetch("""
                     SELECT userid, reactid FROM users
                     WHERE userid = $1 AND reactid = $2 AND emojitype = 'message'""", userid, item)
 
-                chData = await dbcon.fetch("""
+                chData = await self.client.pg_con.fetch("""
                     SELECT chname, reactid FROM channel
                     WHERE chname = $1 AND reactid = $2 AND emojitype = 'message'""", channel_name, item)
 
                 # Handle user data
                 if not existingData:
                     # print('Successfully adding custom emoji in msg')
-                    await dbcon.execute("""
+                    await self.client.pg_con.execute("""
                         INSERT INTO users(userid, reactid, cnt, emojitype)
                         VALUES ($1, $2, 1, 'message')""", userid, item)
                 else:
                     # print(f'Custom emoji exists, updating entry')
-                    await dbcon.execute("""
+                    await self.client.pg_con.execute("""
                         UPDATE users SET cnt = cnt + 1
                         WHERE emojitype = 'message' AND userid = $1 AND reactid = $2""", userid, item)
 
                 # Handle channel data
                 if not chData:
-                    await dbcon.execute("""
+                    await self.client.pg_con.execute("""
                         INSERT INTO channel(chname, reactid, cnt, emojitype)
                         VALUES ($1, $2, 1, 'message')""", channel_name, item)
                 else:
-                    await dbcon.execute("""
+                    await self.client.pg_con.execute("""
                         UPDATE channel SET cnt = cnt + 1
                         WHERE emojitype = 'message' AND chname = $1 AND reactid = $2""", channel_name, item)
 
         # Query unicode emojis into users db
         if len(unimojis) > 0:
             for item in unimojis:
-                existingData = await dbcon.fetch("""
+                existingData = await self.client.pg_con.fetch("""
                     SELECT userid, reactid FROM users
                     WHERE userid = $1 AND reactid = $2 AND emojitype = 'message'""", userid, item)
 
-                chData = await dbcon.fetch("""
+                chData = await self.client.pg_con.fetch("""
                                     SELECT chname, reactid FROM channel
                                     WHERE chname = $1 AND reactid = $2 AND emojitype = 'message'""", channel_name, item)
 
                 # Handle user data
                 if not existingData:
                     # print('Successfully adding unicode emoji in msg')
-                    await dbcon.execute("""
+                    await self.client.pg_con.execute("""
                         INSERT INTO users(userid, reactid, cnt, emojitype)
                         VALUES ($1, $2, 1, 'message')""", userid, item)
                 else:
                     # print('Unicode emoji exists, updating entry')
-                    await dbcon.execute("""
+                    await self.client.pg_con.execute("""
                         UPDATE users SET cnt = cnt + 1
                         WHERE emojitype = 'message' AND userid = $1 AND reactid = $2""", userid, item)
 
                 # Handle channel data
                 if not chData:
-                    await dbcon.execute("""
+                    await self.client.pg_con.execute("""
                         INSERT INTO channel(chname, reactid, cnt, emojitype)
                         VALUES ($1, $2, 1, 'message')""", channel_name, item)
                 else:
-                    await dbcon.execute("""
+                    await self.client.pg_con.execute("""
                         UPDATE channel SET cnt = cnt + 1
                         WHERE emojitype = 'message' AND chname = $1 AND reactid = $2""", channel_name, item)
 
@@ -119,7 +119,7 @@ class Message(commands.Cog):
         await ctx.send(f'The {amt} most used emojis in messages!')
 
         # Grabs top 5 most used reacts in messages
-        record = await dbcon.fetch("""
+        record = await self.client.pg_con.fetch("""
                     SELECT reactid, SUM(cnt) FROM users
                     WHERE users.emojitype = 'message'
                     GROUP BY reactid
@@ -127,7 +127,7 @@ class Message(commands.Cog):
                     LIMIT $1""", amt)
 
         # Fetch single sum value by message
-        emojiSum = await dbcon.fetchval("""
+        emojiSum = await self.client.pg_con.fetchval("""
                         SELECT SUM(cnt) FROM users WHERE emojitype = 'message'""")
 
         # Assuming that record gives rows of exactly 2 columns
@@ -200,14 +200,14 @@ class Message(commands.Cog):
         idValue = str(userID)
 
         # Leave off userid to fit into dictionary
-        record = await dbcon.fetch("""
+        record = await self.client.pg_con.fetch("""
                         SELECT reactid, cnt FROM users
                         WHERE userid = $1
                         AND users.emojitype = 'message'
                         ORDER BY cnt DESC LIMIT 5;""", idValue)
 
         # Fetch single sum value
-        emojiSum = await dbcon.fetchval("""
+        emojiSum = await self.client.pg_con.fetchval("""
                         SELECT SUM(cnt) FROM users
                         WHERE userid = $1 AND emojitype = 'message'""", idValue)
 
@@ -254,13 +254,13 @@ class Message(commands.Cog):
 
     @commands.command(brief='Stat for every emoji used in messages')
     async def fullmsgstats(self, ctx):
-        record = await dbcon.fetch("""
+        record = await self.client.pg_con.fetch("""
             SELECT reactid, SUM(cnt)
             FROM users WHERE users.emojitype = 'message'
             GROUP BY reactid
             ORDER BY SUM(cnt) DESC""")
 
-        emojiSum = await dbcon.fetchval("""SELECT SUM(cnt) FROM users WHERE emojitype = 'message'""")
+        emojiSum = await self.client.pg_con.fetchval("""SELECT SUM(cnt) FROM users WHERE emojitype = 'message'""")
 
         data = dict(record)
         finalList = []

@@ -14,7 +14,6 @@ client = commands.Bot(command_prefix='.')
 #         database=db,
 #         user=db_user,
 #         password=pswd,
-#         ssl=True,
 #     )
 
 
