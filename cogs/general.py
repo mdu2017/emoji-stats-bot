@@ -72,7 +72,7 @@ class General(commands.Cog):
         # Add descriptions for General commands
         em.add_field(name='ping', value='Display network latency', inline=True)
 
-        await ctx.send(embed=em)
+        await author.send(embed=em)
 
     # Disable bot commands in specified channel
     # @commands.command(brief='Disable bot command usage in a specific channel')
