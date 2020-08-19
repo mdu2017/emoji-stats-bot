@@ -22,8 +22,8 @@ class Message(commands.Cog):
         if message.author == self.client.user:
             return
 
-        ctx = await self.client.get_context(message)
-        guild_id = ctx.guild.id
+        # ctx = await self.client.get_context(message)
+        guild_id = message.guild.id
         channel_name = message.channel.name  # TODO: Add channel info to queries
         msg = message.content
 
@@ -261,6 +261,10 @@ class Message(commands.Cog):
             WHERE userid = %s AND users.emojitype = 'message' AND guildid = %s
             ORDER BY cnt DESC LIMIT 5;""", (str(idValue), guild_id))
         record = cursor.fetchall()
+
+        if len(record) == 0:
+            await ctx.send('No emoji data found')
+            return
 
         # Fetch single sum value
         cursor.execute("""
