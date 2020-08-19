@@ -22,8 +22,8 @@ class Message(commands.Cog):
         if message.author == self.client.user:
             return
 
-        ctx = await self.client.get_context(message)
-        guild_id = ctx.guild.id
+        # ctx = await self.client.get_context(message)
+        guild_id = message.guild.id
         channel_name = message.channel.name  # TODO: Add channel info to queries
         msg = message.content
 
