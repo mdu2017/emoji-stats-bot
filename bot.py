@@ -3,7 +3,7 @@ from const import *
 from discord.ext import commands
 
 # Command prefix is .
-client = commands.Bot(command_prefix='.')
+client = commands.Bot(command_prefix='!e ')
 
 
 @client.command(brief='(ex: .load <cogName>)')

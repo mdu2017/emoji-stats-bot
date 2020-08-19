@@ -262,6 +262,10 @@ class Message(commands.Cog):
             ORDER BY cnt DESC LIMIT 5;""", (str(idValue), guild_id))
         record = cursor.fetchall()
 
+        if len(record) == 0:
+            await ctx.send('No emoji data found')
+            return
+
         # Fetch single sum value
         cursor.execute("""
             SELECT SUM(cnt) FROM users WHERE userid = %s 
