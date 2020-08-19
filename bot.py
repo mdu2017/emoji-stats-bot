@@ -1,10 +1,11 @@
 import os
 from const import *
 from discord.ext import commands
+import discord
 
 # Command prefix is .
 client = commands.Bot(command_prefix='!e ')
-
+client.remove_command('help')
 
 @client.command(brief='(ex: .load <cogName>)')
 async def load(ctx, extension):
