@@ -448,7 +448,7 @@ def processList(client, record, emojiSum):
             temp = getEmojiName(key)  # TODO: Some emojis won't have a name so 'EMOJI' is by default
             finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times | {percentage}% of use.')
 
-        return finalList
+    return finalList
 
 
 def processName(client, ctx, user_name):
