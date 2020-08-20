@@ -157,7 +157,7 @@ class Message(commands.Cog):
         emojiSum = getEmojiSumMsg(cursor, guild_id)
 
         # Process final list for displaying
-        finalList = processList(self.client, record, emojiSum)
+        finalList = processListMsg(self.client, record, emojiSum)
 
         # If no reaction data from query, return empty
         if len(finalList) == 0:
@@ -171,7 +171,7 @@ class Message(commands.Cog):
             colour=discord.Colour.blurple(),
         )
         em.add_field(name=f'The {len(finalList)} most used emojis in messages in the server',
-                     value=f'{result}', inline=True)
+                     value=f'{result}', inline=False)
 
         # Display results
         await ctx.send(embed=em)
@@ -181,12 +181,13 @@ class Message(commands.Cog):
         ps_pool.putconn(conn)
 
     @commands.command(brief='Displays most used emojis in messages by user')
-    async def useremojis(self, ctx, user_name=''):
-        user, username, userID, valid = processName(self.client, ctx, user_name)
+    async def useremojis(self, ctx, *args):
+        usr_name = ' '.join(args)
+        user, username, userID, valid = processName(self.client, ctx, usr_name)
 
         # Check for empty user
         if not valid:
-            await ctx.send(f'User {user_name} was not found\nUsage: !e useremojis <@username>')
+            await ctx.send(f'User {usr_name} was not found\nUsage: !e useremojis <@username>')
             return
 
         # Get db connection and check
@@ -205,10 +206,10 @@ class Message(commands.Cog):
             return
 
         # Fetch total emojis used
-        emojiSum = getEmojiSumUsr(cursor, guild_id, userID)
+        emojiSum = getEmojiSumUsrMsg(cursor, guild_id, userID)
 
         # Process final list for displaying
-        finalList = processList(self.client, record, emojiSum)
+        finalList = processListMsg(self.client, record, emojiSum)
 
         # If no reaction data from query, return empty
         if len(finalList) == 0:
@@ -223,7 +224,7 @@ class Message(commands.Cog):
             colour=discord.Colour.blurple(),
         )
         em.add_field(name=f'{username}\'s {len(finalList)} most used emojis in the server',
-                     value=f'{result}', inline=True)
+                     value=f'{result}', inline=False)
 
         # Display results
         await ctx.send(embed=em)
@@ -233,14 +234,15 @@ class Message(commands.Cog):
         ps_pool.putconn(conn)
 
     @commands.command(brief='Lists user\'s favorite emote')
-    async def favorite(self, ctx, user_name=''):
+    async def favemoji(self, ctx, *args):
+        usr_name = ' '.join(args)
 
         # Get the user info from @mention or user's nickname
-        user, username, userID, valid = processName(self.client, ctx, user_name)
+        user, username, userID, valid = processName(self.client, ctx, usr_name)
         guild_id = ctx.guild.id
 
         if not valid:
-            await ctx.send(f'User {user_name} was not found\nUsage: !e favorite <@username>')
+            await ctx.send(f'User {usr_name} was not found\nUsage: !e favemoji <@username>')
             return
 
         # Get db connection
@@ -259,14 +261,10 @@ class Message(commands.Cog):
             return
 
         # Fetch single sum value
-        cursor.execute("""
-                    SELECT SUM(cnt) FROM users WHERE userid = %s 
-                    AND emojitype = 'message' AND guildid = %s""", (str(userID), guild_id))
-        emojiSum = cursor.fetchone()
-        emojiSum = int(emojiSum[0])
+        emojiSum = getEmojiSumUsrMsg(cursor, guild_id, userID)
 
         # Convert records into list for display
-        finalList = processList(self.client, record, emojiSum)
+        finalList = processListMsg(self.client, record, emojiSum)
 
         # If no reaction data from query, return empty
         if len(finalList) == 0:
@@ -278,9 +276,8 @@ class Message(commands.Cog):
         # Create embed and display results
         em = discord.Embed(
             colour=discord.Colour.blurple(),
-            title=f'{username}\'s favorite emoji',
         )
-        em.add_field(name='Favorite emoji: ', value=f'{favoriteEmoji}', inline=True)
+        em.add_field(name=f'{username}\'s favorite emoji:', value=f'{favoriteEmoji}', inline=False)
         await ctx.send(embed=em)
 
     @commands.command(brief='Stat for every emoji used in messages')
@@ -299,7 +296,7 @@ class Message(commands.Cog):
 
         # Get sum and final list
         emojiSum = getEmojiSumMsg(cursor, guild_id)
-        finalList = processList(self.client, record, emojiSum)
+        finalList = processListMsg(self.client, record, emojiSum)
 
         # If no reaction data from query, return empty
         if len(finalList) == 0:
@@ -315,7 +312,7 @@ class Message(commands.Cog):
             colour=discord.Colour.blurple(),
             title=f'Full statistics for all emojis used',
         )
-        em.add_field(name='Emojis used in server', value=f'{result}', inline=True)
+        em.add_field(name='Emojis used in server', value=f'{result}', inline=False)
         await ctx.send(embed=em)
 
         # Close db stuff
@@ -325,91 +322,6 @@ class Message(commands.Cog):
 
 def setup(client):
     client.add_cog(Message(client))
-
-
-# Used in all the commands to process data
-def processList(client, record, emojiSum):
-    finalList = []
-    data = dict(record)  # convert record to dictionary
-
-    # Convert emoji into discord representation
-    for key in data:
-        keystr = str(key)
-        percentage = round((data[key] / emojiSum) * 100, 2)
-        spacing = ''
-        if len(finalList) == 0:  # Spacing for first item
-            spacing = ' '
-        else:
-            spacing = ''
-
-        if '<' in keystr:  # If it's a custom emoji, parse ID
-            startIndex = keystr.rindex(':') + 1
-            endIndex = keystr.index('>')
-            id = int(key[startIndex:endIndex])
-            name = 'EMOJI'
-            currEmoji = client.get_emoji(id)
-            if currEmoji is not None:
-                name = currEmoji.name
-            finalList.append(
-                f'{spacing}{currEmoji} - {name} used ({data[key]}) times | {percentage}% of use.')
-
-        else:
-            temp = getEmojiName(key)  # TODO: Some emojis won't have a name so 'EMOJI' is by default
-            finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times | {percentage}% of use.')
-
-    return finalList
-
-
-# Gets username info in commands involving usernames
-def processName(client, ctx, user_name):
-    user = None
-    username = None
-    userID = None
-    valid = True
-
-    if user_name == '':
-        return None, None, None, False
-
-    # If mentioned, get by id, otherwise search each member's nickname
-    if '@' in user_name and '!' in user_name:
-        idStr = str(user_name)
-        idStr = idStr[idStr.index('!') + 1: idStr.index('>')]
-        userID = int(idStr)
-        user = client.get_user(userID)
-        username = user.name
-    else:
-        for guild in client.guilds:
-            for member in guild.members:
-                nickname = member.nick
-                if str(user_name) == str(nickname):
-                    user = member
-                    username = member.name
-                    userID = member.id
-                    break
-
-    # Check for empty user
-    if user is None:
-        valid = False
-
-    return user, username, userID, valid
-
-
-# Gets database connection and cursor
-def getConnection():
-    # Get db connection and check
-    conn = ps_pool.getconn()
-    if conn:
-        cursor = conn.cursor()
-    else:
-        print('Error getting connection from pool')
-        return
-
-    return conn, cursor
-
-
-# Get the final results in a single message
-def getResult(finalList):
-    return '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=1))
 
 
 # Gets sum of total emojis used in messages
@@ -422,7 +334,7 @@ def getEmojiSumMsg(cursor, guild_id):
 
 
 # Get sum of total emojis used in user emoji commands
-def getEmojiSumUsr(cursor, guild_id, userID):
+def getEmojiSumUsrMsg(cursor, guild_id, userID):
     cursor.execute("""
                 SELECT SUM(cnt) FROM users WHERE userid = %s 
                 AND emojitype = 'message' AND guildid = %s""", (str(userID), guild_id))

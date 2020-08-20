@@ -20,13 +20,7 @@ class Reaction(commands.Cog):
         value = str(emojiID)  # Stringify emoji for database
 
         # Get db connection and check
-        conn = ps_pool.getconn()
-        if conn:
-            cursor = conn.cursor()
-        else:
-            print('Error getting connection from pool')
-            return
-
+        conn, cursor = getConnection()
         guild_id = reaction.message.guild.id
 
         # Handle user data if it exists
@@ -70,7 +64,6 @@ class Reaction(commands.Cog):
         cursor.close()  # Close cursor
         ps_pool.putconn(conn)  # Close connection
 
-
     # Handles processing when reaction is removed from a message
     @commands.Cog.listener()
     async def on_reaction_remove(self, reaction, user):
@@ -80,12 +73,7 @@ class Reaction(commands.Cog):
         value = str(emojiID)  # Stringify emoji for database
 
         # Get db connection and check
-        conn = ps_pool.getconn()
-        if conn:
-            cursor = conn.cursor()
-        else:
-            print('Error getting connection from pool')
-            return
+        conn, cursor = getConnection()
 
         guild_id = reaction.message.guild.id
 
@@ -131,131 +119,41 @@ class Reaction(commands.Cog):
         record = None
 
         # Get db connection and check
-        conn = ps_pool.getconn()
-        if conn:
-            cursor = conn.cursor()
-        else:
-            print('Error getting connection from pool')
-            return
-
+        conn, cursor = getConnection()
         guild_id = ctx.guild.id
 
-        if mode == 'custom':
-            await ctx.send(f'Overall top {amt} most popular reacts in this server! (custom emojis)')
-            cursor.execute("""
-                SELECT reactid, SUM(cnt) FROM users
-                WHERE users.emojitype = 'react' AND reactid LIKE '<%%' AND guildid = %s
-                GROUP BY reactid ORDER BY SUM(cnt) DESC
-                LIMIT (%s)""", (guild_id, amt))
-            record = cursor.fetchall()
-        elif mode == 'unicode':
-            await ctx.send(f'Overall top {amt} most popular reacts in this server! (Unicode emojis)')
-            cursor.execute("""
-                SELECT reactid, SUM(cnt) FROM users
-                WHERE users.emojitype = 'react' AND reactid NOT LIKE '<%%' AND guildid = %s
-                GROUP BY reactid
-                ORDER BY SUM(cnt) DESC
-                LIMIT (%s)""", (guild_id, amt))
-            record = cursor.fetchall()
-        else:
-            # Grabs top X most used reacts by type
-            if mode == 'normal':
-                await ctx.send(f'Overall top {amt} most popular reacts in this server!')
-                cursor.execute("""
-                    SELECT reactid, SUM(cnt) FROM users
-                    WHERE users.emojitype = 'react' AND guildid = %s
-                    GROUP BY reactid
-                    ORDER BY SUM(cnt) DESC
-                    LIMIT %s""", (guild_id, amt))
-                record = cursor.fetchall()
+        # Query records for top reactions
+        record, title = getTopReacts(cursor, guild_id, amt, mode)
 
         if len(record) == 0:
             await ctx.send(f'No reaction data available')
             return
 
         # Fetch single sum value
-        cursor.execute("""
-            SELECT SUM(cnt) FROM users 
-            WHERE users.emojitype = 'react' AND guildid = %s""", (guild_id, ))
-        emojiSum = cursor.fetchone()
-        emojiSum = int(emojiSum[0])
+        emojiSum = getEmojiSumRct(cursor, guild_id)
+        finalList = processListRct(self.client, record, emojiSum)
 
-        # Assuming that record gives rows of exactly 2 columns
-        data = dict(record)  # convert record to dictionary
-        finalList = []
-
-        # Convert emoji into discord representation
-        for key in data:
-            keystr = str(key)
-            percentage = round((data[key] / emojiSum) * 100, 2)
-            spacing = ''
-            if len(finalList) == 0:  # Spacing for first item
-                spacing = ' '
-            else:
-                spacing = ''
-
-            if '<' in keystr:  # If it's a custom emoji, parse ID
-                startIndex = keystr.rindex(':') + 1
-                endIndex = keystr.index('>')
-                id = int(key[startIndex:endIndex])
-                name = 'EMOJI'
-                currEmoji = self.client.get_emoji(id)
-                if currEmoji is not None:
-                    name = currEmoji.name
-                finalList.append(
-                    f'{spacing}{currEmoji} - {name} used ({data[key]}) times | {percentage}% of all reacts.')
-
-            else:
-                temp = getEmojiName(key)  # TODO: Some reacts won't have a name so 'EMOJI' is by default
-                finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times | {percentage}% of all reacts.')
-
-        result = '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=1))
-        await ctx.send(f'{result}')
+        # Display results
+        result = getResult(finalList)
+        embed = discord.Embed(colour=discord.Colour.blurple())
+        embed.add_field(name=f'{title}', value=f'{result}', inline=False)
+        await ctx.send(embed=embed)
 
         cursor.close()  # Close cursor
         ps_pool.putconn(conn)  # Close connection
 
     # Gets a list of reacts by user (Can use nickname or mention)
     @commands.command(brief='Get list of top 10 most used reacts by user (.userreacts <@username/nickname>')
-    async def userreacts(self, ctx, arg1=''):
-        user = None
-        username = None
-        userID = None
+    async def userreacts(self, ctx, *args):
+        usr_name = ' '.join(args)
+        user, username, userID, valid = processName(self.client, ctx, usr_name)
 
-        # Check empty argument
-        if arg1 == '':
-            await ctx.send(f'Usage: .userreacts <@username> OR .userreacts <nickname>')
-            return
-
-        # If mentioned, get by id, otherwise search each member's nickname
-        if '@' in arg1 and '!' in arg1:
-            idStr = str(arg1)
-            idStr = idStr[idStr.index('!') + 1: idStr.index('>')]
-            userID = int(idStr)
-            user = self.client.get_user(userID)
-            username = user.name
-        else:
-            for guild in self.client.guilds:
-                for member in guild.members:
-                    nickname = member.nick
-                    if str(arg1) == str(nickname):
-                        user = member
-                        username = user.name
-                        userID = user.id
-                        break
-
-        # Check for empty user
-        if user is None:
-            await ctx.send(f'Error: user {arg1} was not found')
+        if not valid:
+            await ctx.send(f'User {usr_name} was not found\nUsage: !e userreacts <@username>')
             return
 
         # Get db connection and check
-        conn = ps_pool.getconn()
-        if conn:
-            cursor = conn.cursor()
-        else:
-            print('Error getting connection from pool')
-            return
+        conn, cursor = getConnection()
 
         guild_id = ctx.guild.id
 
@@ -274,60 +172,69 @@ class Reaction(commands.Cog):
             return
 
         # Fetch single sum value
-        sumSql = """SELECT SUM(cnt) FROM users WHERE userid = %s AND emojitype = 'react' AND guildid = %s"""
-        cursor.execute(sumSql, (str(userID), guild_id))
-        emojiSum = cursor.fetchone()
-        emojiSum = int(emojiSum[0])
-
-        data = dict(record)  # convert record to dictionary
-        finalList = []
-
-        # Convert emoji into discord representation
-        for key in data:
-            keystr = str(key)
-            percentage = round((data[key] / emojiSum) * 100, 2)
-            spacing = ''
-            if len(finalList) == 0:  # Spacing for first item
-                spacing = ' '
-            else:
-                spacing = ''
-
-            if '<' in keystr:  # If it's a custom emoji, parse ID
-                startIndex = keystr.rindex(':') + 1
-                endIndex = keystr.index('>')
-                id = int(key[startIndex:endIndex])
-                name = 'EMOJI'
-                currEmoji = self.client.get_emoji(id)
-                if currEmoji is not None:
-                    name = currEmoji.name
-                finalList.append(
-                    f'{spacing}{currEmoji} - {name} used ({data[key]}) times | {percentage}% of reacts.')
-
-            else:
-                temp = getEmojiName(key)  # TODO: Some emojis won't have a name so 'EMOJI' is by default
-                finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times | {percentage}% of reacts.')
-
-        favoriteReact = finalList[0]
-        result = '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=1))
+        emojiSum = getEmojiSumRctUsr(cursor, userID, guild_id)
+        finalList = processListRct(self.client, record, emojiSum)
+        result = getResult(finalList)
 
         # Display results
-        await ctx.send(f'{username}\'s top 5 reacts in this server!')
-        await ctx.send(f'{username}\'s favorite reaction: {favoriteReact}\n')
-        await ctx.send(f'{result}')
+        embed = discord.Embed(colour=discord.Colour.blurple())
+        embed.add_field(name=f'{username}\'s top 5 reacts in this server!', value=f'{result}', inline=False)
+        await ctx.send(embed=embed)
 
         cursor.close()  # Close cursor
         ps_pool.putconn(conn)  # Close connection
 
+    @commands.command(brief='Lists user\'s favorite reaction')
+    async def favreact(self, ctx, *args):
+        usr_name = ' '.join(args)
+
+        # Get the user info from @mention or user's nickname
+        user, username, userID, valid = processName(self.client, ctx, usr_name)
+        guild_id = ctx.guild.id
+
+        if not valid:
+            await ctx.send(f'User {usr_name} was not found\nUsage: !e favreact <@username>')
+            return
+
+        # Get db connection
+        conn, cursor = getConnection()
+
+        # Get the data
+        cursor.execute("""
+            SELECT reactid, cnt FROM users
+            WHERE userid = %s AND users.emojitype = 'react' AND guildid = %s
+            ORDER BY cnt DESC LIMIT 1;""", (str(userID), guild_id))
+        record = cursor.fetchall()
+
+        # Check for empty records
+        if len(record) == 0:
+            await ctx.send('No emoji data found')
+            return
+
+        # Fetch single sum value
+        emojiSum = getEmojiSumRctUsr(cursor, userID, guild_id)
+
+        # Convert records into list for display
+        finalList = processListMsg(self.client, record, emojiSum)
+
+        # If no reaction data from query, return empty
+        if len(finalList) == 0:
+            await ctx.send(f'{username}\' has no emoji data')
+            return
+
+        fav_react = finalList[0]
+
+        # Create embed and display results
+        em = discord.Embed(
+            colour=discord.Colour.blurple(),
+        )
+        em.add_field(name=f'{username}\'s favorite reaction:', value=f'{fav_react}', inline=False)
+        await ctx.send(embed=em)
+
     @commands.command(brief='Lists full stats for every react (.fullreactstats)')
     async def fullreactstats(self, ctx):
         # Get db connection and check
-        conn = ps_pool.getconn()
-        if conn:
-            cursor = conn.cursor()
-        else:
-            print('Error getting connection from pool')
-            return
-
+        conn, cursor = getConnection()
         guild_id = ctx.guild.id
 
         # Grabs all reactions
@@ -335,7 +242,7 @@ class Reaction(commands.Cog):
             SELECT reactid, SUM(cnt)
             FROM users WHERE users.emojitype = 'react' AND guildid = %s
             GROUP BY reactid
-            ORDER BY SUM(cnt) DESC""", (guild_id, ))
+            ORDER BY SUM(cnt) DESC""", (guild_id,))
         record = cursor.fetchall()
 
         # Handle empty results
@@ -344,44 +251,14 @@ class Reaction(commands.Cog):
             return
 
         # Fetch single sum value
-        cursor.execute("""SELECT SUM(cnt) FROM users WHERE emojitype = 'react' AND guildid = %s""", (guild_id, ))
-        emojiSum = cursor.fetchone()
-        emojiSum = int(emojiSum[0])
-
-        # Assuming that record gives rows of exactly 2 columns
-        data = dict(record)  # convert record to dictionary
-        finalList = []
-
-        # Convert emoji into discord representation
-        for key in data:
-            keystr = str(key)
-            percentage = round((data[key] / emojiSum) * 100, 2)
-            spacing = ''
-            if len(finalList) == 0:  # Spacing for first item
-                spacing = ' '
-            else:
-                spacing = ''
-
-            if '<' in keystr:  # If it's a custom emoji, parse ID
-                startIndex = keystr.rindex(':') + 1
-                endIndex = keystr.index('>')
-                id = int(key[startIndex:endIndex])
-                name = 'EMOJI'
-                currEmoji = self.client.get_emoji(id)
-                if currEmoji is not None:
-                    name = currEmoji.name
-                finalList.append(
-                    f'{spacing}{currEmoji} - {name} used ({data[key]}) times | {percentage}% of all reacts.')
-
-            else:
-                temp = getEmojiName(key)  # TODO: Some emojis won't have a name so 'EMOJI' is by default
-                finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times | {percentage}% of reacts.')
-
-        result = '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=1))
+        emojiSum = getEmojiSumRct(cursor, guild_id)
+        finalList = processListRct(self.client, record, emojiSum)
+        result = getResult(finalList)
 
         # Display results
-        await ctx.send(f'Full stats of all reactions used in this server')
-        await ctx.send(f'{result}')
+        embed = discord.Embed(colour=discord.Colour.blurple())
+        embed.add_field(name=f'Full stats of all reactions used in this server', value=f'{result}', inline=False)
+        await ctx.send(embed=embed)
 
         cursor.close()  # Close cursor
         ps_pool.putconn(conn)  # Close connection
@@ -389,3 +266,49 @@ class Reaction(commands.Cog):
 
 def setup(client):
     client.add_cog(Reaction(client))
+
+
+def getTopReacts(cursor, guild_id, amt, mode):
+    if mode == 'custom':
+        cursor.execute("""
+            SELECT reactid, SUM(cnt) FROM users
+            WHERE users.emojitype = 'react' AND reactid LIKE '<%%' AND guildid = %s
+            GROUP BY reactid ORDER BY SUM(cnt) DESC
+            LIMIT (%s)""", (guild_id, amt))
+        record = cursor.fetchall()
+        title = f'Top {len(record)} most popular reacts in this server! (custom emojis)'
+    elif mode == 'unicode':
+        cursor.execute("""
+            SELECT reactid, SUM(cnt) FROM users
+            WHERE users.emojitype = 'react' AND reactid NOT LIKE '<%%' AND guildid = %s
+            GROUP BY reactid
+            ORDER BY SUM(cnt) DESC
+            LIMIT (%s)""", (guild_id, amt))
+        record = cursor.fetchall()
+        title = f'Top {len(record)} most popular reacts in this server! (Unicode emojis)'
+    else:
+        cursor.execute("""
+            SELECT reactid, SUM(cnt) FROM users
+            WHERE users.emojitype = 'react' AND guildid = %s
+            GROUP BY reactid
+            ORDER BY SUM(cnt) DESC
+            LIMIT %s""", (guild_id, amt))
+        record = cursor.fetchall()
+        title = f'Top {len(record)} most popular reacts in this server!'
+
+    return record, title
+
+def getEmojiSumRct(cursor, guild_id):
+    cursor.execute("""
+                SELECT SUM(cnt) FROM users 
+                WHERE users.emojitype = 'react' AND guildid = %s""", (guild_id,))
+    emojiSum = cursor.fetchone()
+    emojiSum = int(emojiSum[0])
+    return emojiSum
+
+def getEmojiSumRctUsr(cursor, userID, guild_id):
+    sumSql = """SELECT SUM(cnt) FROM users WHERE userid = %s AND emojitype = 'react' AND guildid = %s"""
+    cursor.execute(sumSql, (str(userID), guild_id))
+    emojiSum = cursor.fetchone()
+    emojiSum = int(emojiSum[0])
+    return emojiSum

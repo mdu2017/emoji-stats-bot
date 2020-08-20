@@ -70,3 +70,5 @@ async def on_ready():
 
 # client.loop.run_until_complete(create_db_pool())  # Keep db pool open
 client.run(token)  # token from text file
+
+
