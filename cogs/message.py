@@ -329,7 +329,7 @@ class Message(commands.Cog):
         guild_id = ctx.guild.id
 
         if not valid:
-            await ctx.send(f'User {user_name} was not found\nUsage: .favorite <@username>')
+            await ctx.send(f'User {user_name} was not found\nUsage: !e favorite <@username>')
             return
 
         # Get db connection
@@ -374,6 +374,7 @@ class Message(commands.Cog):
 
     @commands.command(brief='Stat for every emoji used in messages')
     async def fullmsgstats(self, ctx):
+        guild_id = ctx.guild.id
 
         # Get db connection and check
         conn = ps_pool.getconn()
@@ -382,8 +383,6 @@ class Message(commands.Cog):
         else:
             print('Error getting connection from pool')
             return
-
-        guild_id = ctx.guild.id
 
         cursor.execute("""
             SELECT reactid, SUM(cnt)
@@ -396,39 +395,14 @@ class Message(commands.Cog):
         emojiSum = cursor.fetchone()
         emojiSum = int(emojiSum[0])
 
-        data = dict(record)
-        finalList = []
-
-        # Convert emoji into discord representation
-        for key in data:
-            keystr = str(key)
-            percentage = round((data[key] / emojiSum) * 100, 2)
-            spacing = ''
-            if len(finalList) == 0:  # Spacing for first item
-                spacing = ' '
-            else:
-                spacing = ''
-
-            if '<' in keystr:  # If it's a custom emoji, parse ID
-                startIndex = keystr.rindex(':') + 1
-                endIndex = keystr.index('>')
-                id = int(key[startIndex:endIndex])
-                name = 'EMOJI'
-                currEmoji = self.client.get_emoji(id)
-                if currEmoji is not None:
-                    name = currEmoji.name
-                finalList.append(
-                    f'{spacing}{currEmoji} - {name} used ({data[key]}) times | {percentage}% of emojis.')
-
-            else:
-                temp = getEmojiName(key)  # TODO: Some emojis won't have a name so 'EMOJI' is by default
-                finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times | {percentage}% of emojis.')
+        finalList = processList(self.client, record, emojiSum)
 
         # If no reaction data from query, return empty
         if len(finalList) == 0:
             await ctx.send(f'No data available')
             return
 
+        # Join results into one message string
         result = '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=1))
 
         # Display results
