@@ -50,34 +50,38 @@ class General(commands.Cog):
 
         # Message commands
         em.add_field(name='useremojis <user>',
-                     value='Displays user\'s top 5 emojis | <user> can be nickname or mention', inline=True)
+                     value='''Displays user\'s top 5 emojis 
+                     <user> can be nickname or mention''', inline=False)
         em.add_field(name='topemojis <num>',
-                     value='Display <num> most used emojis in the server | <num> = number between 1-15', inline=True)
+                     value='''Display <num> most used emojis in the server 
+                     <num> = number between 1-15''', inline=False)
         em.add_field(name='favemoji <@username>',
-                     value='Display user\'s favorite emoji in the server', inline=True)
-        em.add_field(name='fullmsgstats', value='Display stats for all emojis used in the server', inline=True)
+                     value='Display user\'s favorite emoji in the server', inline=False)
+        em.add_field(name='fullmsgstats', value='Display stats for all emojis used in the server', inline=False)
 
         # Reaction commands
-        em.add_field(name='userreacts <user>', value='Displays user\'s top 5 reactions | '
-                                                     '<user> can be nickname or mention', inline=True)
-        em.add_field(name='topreacts <num> <mode>', value='''Display <num> most used reactions in the server | 
-                                                   <num> - number between 1-15, 
-                                                   <mode> - "custom" or "unicode", mode is an optional argument''', inline=True)
+        em.add_field(name='userreacts <user>', value='''Displays user\'s top 5 reactions
+                                                    <user> can be nickname or mention''', inline=False)
+        em.add_field(name='topreacts <num> <mode>', value='''Display <num> most used reactions in the server
+                                                   <num> - number between 1-15
+                                                   <mode> - "custom" or "unicode" -- mode is an optional argument''', inline=False)
         em.add_field(name='favreact <@username>',
-                     value='Display user\'s favorite reaction in the server | <@username> - can use mention or nickname', inline=True)
-        em.add_field(name='fullreactstats', value='Display stats for all reactions used in the server', inline=True)
+                     value='''Display user\'s favorite reaction in the server 
+                     <@username> - can use mention or nickname''', inline=False)
+        em.add_field(name='fullreactstats', value='Display stats for all reactions used in the server', inline=False)
 
         # Channel commands
         em.add_field(name='channelstats <channel_name> <option>',
                      value='''Display top 3 emojis or reactions for a specified channel. 
                      <channel_name> - name of the channel (no # needed)
-                     <channel_name> and <option> are optional arguments. <option> is either "react" or "message"''',
-                     inline=True)
+                     <channel_name> and <option> are optional arguments. 
+                     <option> is either "react" or "message"''',
+                     inline=False)
         em.add_field(name='fullchstats', value='Shows the most popular emoji and react for each channel if possible',
-                     inline=True)
+                     inline=False)
 
         # Add descriptions for General commands
-        em.add_field(name='ping', value='Display network latency', inline=True)
+        em.add_field(name='ping', value='Display network latency', inline=False)
 
         await author.send(embed=em)
 
