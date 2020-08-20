@@ -4,14 +4,22 @@ import psycopg2
 from psycopg2 import pool
 import discord
 
+file = open('dbcred.txt', 'r')
+credList = file.read().splitlines()
+usr = credList[0]
+pwd = credList[1]
+host = credList[2]
+port = credList[3]
+db = credList[4]
+
 # Setup db connection at start
 ps_pool = psycopg2.pool.SimpleConnectionPool(
     1, 20,
-    user='tjazufgdgelrwg',
-    password='52f31cc400aefb9dbb0dc7b88c71f8fb6ed9ffc515dc65617e9aad9dae92aa1d',
-    host='ec2-54-158-122-162.compute-1.amazonaws.com',
-    port='5432',
-    database='d66tlan8f3srnu'
+    user=usr,
+    password=pwd,
+    host=host,
+    port=port,
+    database=db
 )
 
 if ps_pool:
