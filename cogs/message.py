@@ -169,9 +169,9 @@ class Message(commands.Cog):
         # Create customized embed
         em = discord.Embed(
             colour=discord.Colour.blurple(),
-            title=f'The {len(finalList)} most used emojis in messages in the server',
         )
-        em.add_field(name='', value=f'{result}', inline=True)
+        em.add_field(name=f'The {len(finalList)} most used emojis in messages in the server',
+                     value=f'{result}', inline=True)
 
         # Display results
         await ctx.send(embed=em)
