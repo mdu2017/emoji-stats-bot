@@ -329,7 +329,7 @@ class Message(commands.Cog):
         guild_id = ctx.guild.id
 
         if not valid:
-            await ctx.send(f'User {user_name} was not found')
+            await ctx.send(f'User {user_name} was not found\nUsage: .favorite <@username>')
             return
 
         # Get db connection
@@ -484,8 +484,7 @@ def processName(client, ctx, user_name):
     valid = True
 
     if user_name == '':
-        await ctx.send(f'Usage: .favorite <@username>')
-        return
+        return None, None, None, False
 
     # If mentioned, get by id, otherwise search each member's nickname
     if '@' in user_name and '!' in user_name:
