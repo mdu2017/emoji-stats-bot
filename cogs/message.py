@@ -191,15 +191,13 @@ class Message(commands.Cog):
 
         # Get db connection and check
         conn, cursor = getConnection()
-
-        idValue = str(userID)
         guild_id = ctx.guild.id
 
         # Leave off userid to fit into dictionary
         cursor.execute("""
             SELECT reactid, cnt FROM users
             WHERE userid = %s AND users.emojitype = 'message' AND guildid = %s
-            ORDER BY cnt DESC LIMIT 5;""", (str(idValue), guild_id))
+            ORDER BY cnt DESC LIMIT 5;""", (str(userID), guild_id))
         record = cursor.fetchall()
 
         if len(record) == 0:
@@ -220,10 +218,15 @@ class Message(commands.Cog):
         favoriteEmoji = finalList[0]
         result = getResult(finalList)
 
+        # Create customized embed
+        em = discord.Embed(
+            colour=discord.Colour.blurple(),
+        )
+        em.add_field(name=f'{username}\'s {len(finalList)} most used emojis in the server',
+                     value=f'{result}', inline=True)
+
         # Display results
-        await ctx.send(f'{username}\'s top 5 emojis in this server!')
-        await ctx.send(f'{username}\'s favorite emoji: {favoriteEmoji}\n')
-        await ctx.send(f'{result}')
+        await ctx.send(embed=em)
 
         # Close db stuff
         cursor.close()
@@ -294,10 +297,8 @@ class Message(commands.Cog):
             ORDER BY SUM(cnt) DESC""", (guild_id,))
         record = cursor.fetchall()
 
-        cursor.execute("""SELECT SUM(cnt) FROM users WHERE emojitype = 'message' AND guildid = %s""", (guild_id,))
-        emojiSum = cursor.fetchone()
-        emojiSum = int(emojiSum[0])
-
+        # Get sum and final list
+        emojiSum = getEmojiSumMsg(cursor, guild_id)
         finalList = processList(self.client, record, emojiSum)
 
         # If no reaction data from query, return empty
@@ -309,8 +310,13 @@ class Message(commands.Cog):
         result = getResult(finalList)
 
         # Display results
-        await ctx.send(f'Full stats on overall usage of each emoji in this server')
-        await ctx.send(f'{result}')
+        # Create embed and display results
+        em = discord.Embed(
+            colour=discord.Colour.blurple(),
+            title=f'Full statistics for all emojis used',
+        )
+        em.add_field(name='Emojis used in server', value=f'{result}', inline=True)
+        await ctx.send(embed=em)
 
         # Close db stuff
         cursor.close()
