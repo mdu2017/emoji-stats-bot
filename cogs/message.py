@@ -416,11 +416,17 @@ class Message(commands.Cog):
             return
 
         favoriteEmoji = finalList[0]
-        result = '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=1))
 
         # Display results
-        await ctx.send(f'{username}\'s favorite emoji: {favoriteEmoji}\n')
-        await ctx.send(f'{result}')
+        # Set ember and header
+        em = discord.Embed(
+            colour=discord.Colour.blurple(),
+            title=f'{username}\'s favorite emoji',
+        )
+        em.add_field(name='Favorite emoji: ', value=f'{favoriteEmoji}', inline=True)
+        await ctx.send(embed=em)
+
+        # await ctx.send(f'{username}\'s favorite emoji: {favoriteEmoji}\n')
 
     @commands.command(brief='Stat for every emoji used in messages')
     async def fullmsgstats(self, ctx):
