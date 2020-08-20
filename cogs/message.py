@@ -323,54 +323,26 @@ class Message(commands.Cog):
 
     @commands.command(brief='Lists user\'s favorite emote')
     async def favorite(self, ctx, user_name=''):
-        user = None
-        username = None
-        userID = None
 
-        if user_name == '':
-            await ctx.send(f'Usage: .favorite <@username>')
-            return
+        # Get the user info from @mention or user's nickname
+        user, username, userID, valid = processName(self.client, ctx, user_name)
+        guild_id = ctx.guild.id
 
-        # If mentioned, get by id, otherwise search each member's nickname
-        if '@' in user_name and '!' in user_name:
-            idStr = str(user_name)
-            idStr = idStr[idStr.index('!') + 1: idStr.index('>')]
-            userID = int(idStr)
-            user = self.client.get_user(userID)
-            username = user.name
-        else:
-            for guild in self.client.guilds:
-                for member in guild.members:
-                    nickname = member.nick
-                    if str(user_name) == str(nickname):
-                        user = member
-                        username = member.name
-                        userID = member.id
-                        break
-
-        # Check for empty user
-        if user is None:
+        if not valid:
             await ctx.send(f'User {user_name} was not found')
             return
 
-        # Get db connection and check
-        conn = ps_pool.getconn()
-        if conn:
-            cursor = conn.cursor()
-        else:
-            print('Error getting connection from pool')
-            return
+        # Get db connection
+        conn, cursor = getConnection()
 
-        idValue = str(userID)
-        guild_id = ctx.guild.id
-
-        # Get data
+        # Get the data
         cursor.execute("""
                     SELECT reactid, cnt FROM users
                     WHERE userid = %s AND users.emojitype = 'message' AND guildid = %s
-                    ORDER BY cnt DESC LIMIT 1;""", (str(idValue), guild_id))
+                    ORDER BY cnt DESC LIMIT 1;""", (str(userID), guild_id))
         record = cursor.fetchall()
 
+        # Check for empty records
         if len(record) == 0:
             await ctx.send('No emoji data found')
             return
@@ -378,12 +350,12 @@ class Message(commands.Cog):
         # Fetch single sum value
         cursor.execute("""
                     SELECT SUM(cnt) FROM users WHERE userid = %s 
-                    AND emojitype = 'message' AND guildid = %s""", (str(idValue), guild_id))
+                    AND emojitype = 'message' AND guildid = %s""", (str(userID), guild_id))
         emojiSum = cursor.fetchone()
         emojiSum = int(emojiSum[0])
 
-        data = dict(record)  # convert record to dictionary
-        finalList = processList(self.client, data, emojiSum)
+        # Convert records into list for display
+        finalList = processList(self.client, record, emojiSum)
 
         # If no reaction data from query, return empty
         if len(finalList) == 0:
@@ -392,8 +364,7 @@ class Message(commands.Cog):
 
         favoriteEmoji = finalList[0]
 
-        # Display results
-        # Set ember and header
+        # Create embed and display results
         em = discord.Embed(
             colour=discord.Colour.blurple(),
             title=f'{username}\'s favorite emoji',
@@ -473,9 +444,11 @@ def setup(client):
     client.add_cog(Message(client))
 
 
-# TODO: refactor repeated code
-def processList(client, data, emojiSum):
+# Used in all the commands to process data
+def processList(client, record, emojiSum):
     finalList = []
+    data = dict(record)  # convert record to dictionary
+
     # Convert emoji into discord representation
     for key in data:
         keystr = str(key)
@@ -502,3 +475,49 @@ def processList(client, data, emojiSum):
             finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times | {percentage}% of use.')
 
         return finalList
+
+
+def processName(client, ctx, user_name):
+    user = None
+    username = None
+    userID = None
+    valid = True
+
+    if user_name == '':
+        await ctx.send(f'Usage: .favorite <@username>')
+        return
+
+    # If mentioned, get by id, otherwise search each member's nickname
+    if '@' in user_name and '!' in user_name:
+        idStr = str(user_name)
+        idStr = idStr[idStr.index('!') + 1: idStr.index('>')]
+        userID = int(idStr)
+        user = client.get_user(userID)
+        username = user.name
+    else:
+        for guild in client.guilds:
+            for member in guild.members:
+                nickname = member.nick
+                if str(user_name) == str(nickname):
+                    user = member
+                    username = member.name
+                    userID = member.id
+                    break
+
+    # Check for empty user
+    if user is None:
+        valid = False
+
+    return user, username, userID, valid
+
+
+def getConnection():
+    # Get db connection and check
+    conn = ps_pool.getconn()
+    if conn:
+        cursor = conn.cursor()
+    else:
+        print('Error getting connection from pool')
+        return
+
+    return conn, cursor
