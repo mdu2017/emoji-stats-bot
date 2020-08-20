@@ -206,7 +206,7 @@ class Reaction(commands.Cog):
                     f'{spacing}{currEmoji} - {name} used ({data[key]}) times | {percentage}% of all reacts.')
 
             else:
-                temp = handleSpecialEmojis(key)  # TODO: Some reacts won't have a name so 'EMOJI' is by default
+                temp = getEmojiName(key)  # TODO: Some reacts won't have a name so 'EMOJI' is by default
                 finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times | {percentage}% of all reacts.')
 
         result = '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=1))
@@ -304,7 +304,7 @@ class Reaction(commands.Cog):
                     f'{spacing}{currEmoji} - {name} used ({data[key]}) times | {percentage}% of reacts.')
 
             else:
-                temp = handleSpecialEmojis(key)  # TODO: Some emojis won't have a name so 'EMOJI' is by default
+                temp = getEmojiName(key)  # TODO: Some emojis won't have a name so 'EMOJI' is by default
                 finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times | {percentage}% of reacts.')
 
         favoriteReact = finalList[0]
@@ -374,7 +374,7 @@ class Reaction(commands.Cog):
                     f'{spacing}{currEmoji} - {name} used ({data[key]}) times | {percentage}% of all reacts.')
 
             else:
-                temp = handleSpecialEmojis(key)  # TODO: Some emojis won't have a name so 'EMOJI' is by default
+                temp = getEmojiName(key)  # TODO: Some emojis won't have a name so 'EMOJI' is by default
                 finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times | {percentage}% of reacts.')
 
         result = '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=1))

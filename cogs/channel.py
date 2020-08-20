@@ -98,7 +98,7 @@ class Channel(commands.Cog):
                     f'| {percentage}% of {typeStr} used in [#{channel_name}]')
 
             else:
-                temp = handleSpecialEmojis(key)  # TODO: Some reacts won't have a name so 'EMOJI' is by default
+                temp = getEmojiName(key)  # TODO: Some reacts won't have a name so 'EMOJI' is by default
                 finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times in [#{channel_name}] '
                                  f'| {percentage}% of {typeStr} used in [#{channel_name}]')
 

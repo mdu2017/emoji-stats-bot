@@ -20,10 +20,11 @@ class General(commands.Cog):
     async def on_member_remove(self, member):
         print(f'{member} has left the server')
 
-    # Change bot status every 10 mins
-    @tasks.loop(seconds=600)
+    # Change bot status every hour
+    @tasks.loop(seconds=3600)
     async def change_status(self):
-        await self.client.change_presence(activity=discord.Game(next(custom_status)))
+        activity = discord.Activity(type=discord.ActivityType.watching, name='!e help')
+        await self.client.change_presence(activity=activity)
 
     # Overrides inherited cog_check method (Check before executing any commands)
     async def cog_check(self, ctx):
