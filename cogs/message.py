@@ -28,12 +28,7 @@ class Message(commands.Cog):
         msg = message.content
 
         # Get db connection and check
-        conn = ps_pool.getconn()
-        if conn:
-            cursor = conn.cursor()
-        else:
-            print('Error getting connection from pool')
-            return
+        conn, cursor = getConnection()
 
         userid = str(message.author.id)  # Store as string in DB
 
@@ -142,7 +137,6 @@ class Message(commands.Cog):
 
         # Get db connection and check
         conn, cursor = getConnection()
-
         guild_id = ctx.guild.id
 
         # Grabs top 5 most used reacts in messages
@@ -172,9 +166,15 @@ class Message(commands.Cog):
 
         result = getResult(finalList)
 
+        # Create customized embed
+        em = discord.Embed(
+            colour=discord.Colour.blurple(),
+            title=f'The {len(finalList)} most used emojis in messages in the server',
+        )
+        em.add_field(name='', value=f'{result}', inline=True)
+
         # Display results
-        await ctx.send(f'The {amt} most used emojis in messages in the server:')
-        await ctx.send(f'{result}')
+        await ctx.send(embed=em)
 
         # Close db stuff
         cursor.close()
