@@ -383,32 +383,7 @@ class Message(commands.Cog):
         emojiSum = int(emojiSum[0])
 
         data = dict(record)  # convert record to dictionary
-        finalList = []
-
-        # Convert emoji into discord representation
-        for key in data:
-            keystr = str(key)
-            percentage = round((data[key] / emojiSum) * 100, 2)
-            spacing = ''
-            if len(finalList) == 0:  # Spacing for first item
-                spacing = ' '
-            else:
-                spacing = ''
-
-            if '<' in keystr:  # If it's a custom emoji, parse ID
-                startIndex = keystr.rindex(':') + 1
-                endIndex = keystr.index('>')
-                id = int(key[startIndex:endIndex])
-                name = 'EMOJI'
-                currEmoji = self.client.get_emoji(id)
-                if currEmoji is not None:
-                    name = currEmoji.name
-                finalList.append(
-                    f'{spacing}{currEmoji} - {name} used ({data[key]}) times | {percentage}% of use.')
-
-            else:
-                temp = getEmojiName(key)  # TODO: Some emojis won't have a name so 'EMOJI' is by default
-                finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times | {percentage}% of use.')
+        finalList = processList(self.client, data, emojiSum)
 
         # If no reaction data from query, return empty
         if len(finalList) == 0:
@@ -499,5 +474,31 @@ def setup(client):
 
 
 # TODO: refactor repeated code
-def processList(client, data):
-    print()
+def processList(client, data, emojiSum):
+    finalList = []
+    # Convert emoji into discord representation
+    for key in data:
+        keystr = str(key)
+        percentage = round((data[key] / emojiSum) * 100, 2)
+        spacing = ''
+        if len(finalList) == 0:  # Spacing for first item
+            spacing = ' '
+        else:
+            spacing = ''
+
+        if '<' in keystr:  # If it's a custom emoji, parse ID
+            startIndex = keystr.rindex(':') + 1
+            endIndex = keystr.index('>')
+            id = int(key[startIndex:endIndex])
+            name = 'EMOJI'
+            currEmoji = client.get_emoji(id)
+            if currEmoji is not None:
+                name = currEmoji.name
+            finalList.append(
+                f'{spacing}{currEmoji} - {name} used ({data[key]}) times | {percentage}% of use.')
+
+        else:
+            temp = getEmojiName(key)  # TODO: Some emojis won't have a name so 'EMOJI' is by default
+            finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times | {percentage}% of use.')
+
+        return finalList
