@@ -426,8 +426,6 @@ class Message(commands.Cog):
         em.add_field(name='Favorite emoji: ', value=f'{favoriteEmoji}', inline=True)
         await ctx.send(embed=em)
 
-        # await ctx.send(f'{username}\'s favorite emoji: {favoriteEmoji}\n')
-
     @commands.command(brief='Stat for every emoji used in messages')
     async def fullmsgstats(self, ctx):
 

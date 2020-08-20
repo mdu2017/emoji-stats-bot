@@ -48,16 +48,16 @@ async def on_ready():
                 cnt       int,
                 emojitype VARCHAR(20),
                 guildid   BIGINT,
-                PRIMARY KEY(chname, reactid, emojitype)
+                PRIMARY KEY(chname, reactid, emojitype, guildid)
             )""")
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS users(
+                CREATE TABLE IF NOT EXISTS users (
                 userid VARCHAR(100) NOT NULL,
                 reactid TEXT,
                 cnt		INT,
                 emojitype VARCHAR(20),
                 guildid   BIGINT,
-                PRIMARY KEY(userid, reactid, emojitype)
+                PRIMARY KEY(userid, reactid, emojitype, guildid)
             )""" )
             print(f'Tables created successfully')
             conn.commit()
