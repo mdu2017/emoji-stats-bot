@@ -423,7 +423,7 @@ class Message(commands.Cog):
             colour=discord.Colour.blurple(),
             title=f'{username}\'s favorite emoji',
         )
-        em.add_field(name='Favorite emoji: ', value=f'{favoriteEmoji}', inline=True)
+        em.add_field(name='', value=f'{favoriteEmoji}', inline=True)
         await ctx.send(embed=em)
 
         # await ctx.send(f'{username}\'s favorite emoji: {favoriteEmoji}\n')
