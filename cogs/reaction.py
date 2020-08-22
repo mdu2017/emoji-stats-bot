@@ -136,6 +136,7 @@ class Reaction(commands.Cog):
         # Display results
         result = getResult(finalList)
         embed = discord.Embed(colour=discord.Colour.blurple())
+        embed.set_thumbnail(url=emoji_image_url)
         embed.add_field(name=f'{title}', value=f'{result}', inline=False)
         await ctx.send(embed=embed)
 
@@ -178,6 +179,7 @@ class Reaction(commands.Cog):
 
         # Display results
         embed = discord.Embed(colour=discord.Colour.blurple())
+        embed.set_thumbnail(url=emoji_image_url)
         embed.add_field(name=f'{username}\'s top 5 reacts in this server!', value=f'{result}', inline=False)
         await ctx.send(embed=embed)
 
@@ -228,6 +230,7 @@ class Reaction(commands.Cog):
         em = discord.Embed(
             colour=discord.Colour.blurple(),
         )
+        em.set_thumbnail(url=emoji_image_url)
         em.add_field(name=f'{username}\'s favorite reaction:', value=f'{fav_react}', inline=False)
         await ctx.send(embed=em)
 
@@ -255,8 +258,11 @@ class Reaction(commands.Cog):
         finalList = processListRct(self.client, record, emojiSum)
         result = getResult(finalList)
 
+        # TODO: multi-page embeds
+        
         # Display results
         embed = discord.Embed(colour=discord.Colour.blurple())
+        embed.set_thumbnail(url=emoji_image_url)
         embed.add_field(name=f'Full stats of all reactions used in this server', value=f'{result}', inline=False)
         await ctx.send(embed=embed)
 

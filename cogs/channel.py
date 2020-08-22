@@ -56,6 +56,7 @@ class Channel(commands.Cog):
         em = discord.Embed(
             colour=discord.Colour.blurple(),
         )
+        em.set_thumbnail(url=emoji_image_url)
         em.add_field(name=f'Top 3 {typeStr} used in #{channel_name}', value=f'{result}', inline=False)
 
         await ctx.send(embed=em)
@@ -92,6 +93,8 @@ class Channel(commands.Cog):
         if len(reactData) == 0 and len(emojiData) == 0:
             await ctx.send('No reaction or emoji data available')
             return
+
+        # TODO: add multi-page embeds
 
         # Process two data lists and result string
         embed = fullChStatsResult(reactData, emojiData)

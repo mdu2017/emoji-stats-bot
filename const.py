@@ -244,6 +244,7 @@ def fullChStatsResult(reactData, emojiData):
         filteredList[chname].append(f'Most used reaction: {emoji} - used ({cnt}) times\n\n')
 
     embed = discord.Embed(colour=discord.Colour.blurple())
+    embed.set_thumbnail(url=emoji_image_url)
     for key in filteredList:
         info = ''
         for tup in filteredList[key]:
@@ -251,6 +252,7 @@ def fullChStatsResult(reactData, emojiData):
         info += '\n'
 
         embed.add_field(name=f'#{key}', value=f'{info}', inline=False)
+
 
     return embed
 

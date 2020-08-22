@@ -169,8 +169,8 @@ class Message(commands.Cog):
         # Create customized embed
         em = discord.Embed(
             colour=discord.Colour.blurple(),
-            img=emoji_image_url,
         )
+        em.set_thumbnail(url=emoji_image_url)
         em.add_field(name=f'The {len(finalList)} most used emojis in messages in the server',
                      value=f'{result}', inline=False)
 
@@ -223,8 +223,8 @@ class Message(commands.Cog):
         # Create customized embed
         em = discord.Embed(
             colour=discord.Colour.blurple(),
-            url=emoji_image_url,
         )
+        em.set_thumbnail(url=emoji_image_url)
         em.add_field(name=f'{username}\'s {len(finalList)} most used emojis in the server',
                      value=f'{result}', inline=False)
 
@@ -278,10 +278,9 @@ class Message(commands.Cog):
         # Create embed and display results
         em = discord.Embed(
             colour=discord.Colour.blurple(),
-            # url=emoji_image_url,
         )
-        em.add_field(name=f'{username}\'s favorite emoji:', value=f'{favoriteEmoji}', inline=False)
         em.set_thumbnail(url=emoji_image_url)
+        em.add_field(name=f'{username}\'s favorite emoji:', value=f'{favoriteEmoji}', inline=False)
         await ctx.send(embed=em)
 
     @commands.command(brief='Stat for every emoji used in messages')
@@ -315,13 +314,11 @@ class Message(commands.Cog):
         em = discord.Embed(
             colour=discord.Colour.blurple(),
             title=f'Full statistics for all emojis used',
-            url=emoji_image_url,
         )
 
-        # Slice embed to under 1024 characters (max limit)
-        if len(result) > 1024:
-            result = result[:1024]
+        # TODO: multiple page embeds
 
+        em.set_thumbnail(url=emoji_image_url)
         em.add_field(name='Emojis used in server', value=f'{result}', inline=False)
         await ctx.send(embed=em)
 
