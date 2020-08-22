@@ -30,6 +30,8 @@ else:
 # Database credentials
 # pswd = open('passwd.txt', 'r').read()
 
+emoji_image_url = 'https://images.emojiterra.com/google/android-10/512px/1f43c.png'
+
 # read token from txt file
 token = open("token.txt", "r").read()
 
