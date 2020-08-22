@@ -278,11 +278,10 @@ class Message(commands.Cog):
         # Create embed and display results
         em = discord.Embed(
             colour=discord.Colour.blurple(),
-            url=emoji_image_url,
+            # url=emoji_image_url,
         )
         em.add_field(name=f'{username}\'s favorite emoji:', value=f'{favoriteEmoji}', inline=False)
-        # em.set_thumbnail(url=emoji_image_url)
-        # em.set_image(url=emoji_image_url)
+        em.set_thumbnail(url=emoji_image_url)
         await ctx.send(embed=em)
 
     @commands.command(brief='Stat for every emoji used in messages')
