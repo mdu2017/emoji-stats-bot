@@ -279,7 +279,7 @@ class Message(commands.Cog):
         em = discord.Embed(
             colour=discord.Colour.blurple(),
         )
-        em.set_thumbnail(url=emoji_image_url)
+        # em.set_thumbnail(url=emoji_image_url)
         em.add_field(name=f'{username}\'s favorite emoji:', value=f'{favoriteEmoji}', inline=False)
         await ctx.send(embed=em)
 

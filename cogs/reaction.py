@@ -229,8 +229,9 @@ class Reaction(commands.Cog):
         # Create embed and display results
         em = discord.Embed(
             colour=discord.Colour.blurple(),
+
         )
-        em.set_thumbnail(url=emoji_image_url)
+        # em.set_thumbnail(url=emoji_image_url)
         em.add_field(name=f'{username}\'s favorite reaction:', value=f'{fav_react}', inline=False)
         await ctx.send(embed=em)
 
@@ -259,7 +260,7 @@ class Reaction(commands.Cog):
         result = getResult(finalList)
 
         # TODO: multi-page embeds
-        
+
         # Display results
         embed = discord.Embed(colour=discord.Colour.blurple())
         embed.set_thumbnail(url=emoji_image_url)
