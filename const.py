@@ -5,8 +5,10 @@ from psycopg2 import pool
 import discord
 
 # Emojis for turning page back/forward
-right_arrow = '\U000027A1'
-left_arrow = '\U00002B05'
+right_arrow = '\U000025B6'
+left_arrow = '\U000025C0'
+# right_arrow = '\U000027A1'
+# left_arrow = '\U00002B05'
 arrow_end = '\U000023ED'
 arrow_start = '\U000023EE'
 

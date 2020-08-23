@@ -16,10 +16,15 @@ class Reaction(commands.Cog):
     # Handles when reactions are added to a message
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
+
+        # Ignore the reactions for the 4 arrows used to scroll pages
+        emoji_str = str(reaction.emoji)
+        if emoji_str == left_arrow or emoji_str == right_arrow or emoji_str == arrow_start or emoji_str == arrow_end:
+            return
+
         channel_name = reaction.message.channel.name  # TODO: Add channel info to queries
         userid = str(user.id)
-        emojiID = reaction.emoji
-        value = str(emojiID)  # Stringify emoji for database
+        value = str(reaction.emoji)
 
         # Get db connection and check
         conn, cursor = getConnection()
@@ -71,8 +76,7 @@ class Reaction(commands.Cog):
     async def on_reaction_remove(self, reaction, user):
         channel_name = reaction.message.channel.name
         userid = str(user.id)
-        emojiID = reaction.emoji
-        value = str(emojiID)  # Stringify emoji for database
+        value = str(reaction.emoji)
 
         # Get db connection and check
         conn, cursor = getConnection()

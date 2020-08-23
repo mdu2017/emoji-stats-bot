@@ -363,13 +363,14 @@ class Message(commands.Cog):
 
         # Wait for the author to flip the page with a reaction
         def check(reaction, user):
-            return user == msg_author
+            # return user == msg_author (toggle this to allow only the person who initiated the command to use)
+            return True
 
         # Let user scroll between pages
         while True:
             try:
                 # wait_for takes in the event to wait for and a check function that takes the arguments of the event
-                reaction, user = await self.client.wait_for('reaction_add', timeout=45.0, check=check)
+                reaction, user = await self.client.wait_for('reaction_add', timeout=30.0, check=check)
 
                 # next page, last page, prev page, first page
                 if str(reaction.emoji) == right_arrow:
