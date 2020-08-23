@@ -4,6 +4,12 @@ import psycopg2
 from psycopg2 import pool
 import discord
 
+# Emojis for turning page back/forward
+right_arrow = '\U000027A1'
+left_arrow = '\U00002B05'
+arrow_end = '\U000023ED'
+arrow_start = '\U000023EE'
+
 file = open('dbcred.txt', 'r')
 credList = file.read().splitlines()
 usr = credList[0]
@@ -271,5 +277,5 @@ def getConnection():
 
 
 # Get the final results in a single message
-def getResult(finalList):
-    return '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=1))
+def getResult(finalList, ndx=1):
+    return '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=ndx))

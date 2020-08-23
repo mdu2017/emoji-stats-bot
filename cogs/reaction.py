@@ -1,3 +1,5 @@
+import asyncio
+
 import discord
 from discord.ext import commands
 from const import *
@@ -240,6 +242,9 @@ class Reaction(commands.Cog):
         # Get db connection and check
         conn, cursor = getConnection()
         guild_id = ctx.guild.id
+        msg_author = ''
+        async for message in ctx.channel.history(limit=1):
+            msg_author = message.author
 
         # Grabs all reactions
         cursor.execute("""
@@ -257,18 +262,95 @@ class Reaction(commands.Cog):
         # Fetch single sum value
         emojiSum = getEmojiSumRct(cursor, guild_id)
         finalList = processListRct(self.client, record, emojiSum)
-        result = getResult(finalList)
-
-        # TODO: multi-page embeds
-
-        # Display results
-        embed = discord.Embed(colour=discord.Colour.blurple())
-        embed.set_thumbnail(url=emoji_image_url)
-        embed.add_field(name=f'Full stats of all reactions used in this server', value=f'{result}', inline=False)
-        await ctx.send(embed=embed)
 
         cursor.close()  # Close cursor
         ps_pool.putconn(conn)  # Close connection
+
+        # TODO: multi-page embeds
+        # If only 1 page, then get the result and display
+        page_content = []  # the final list of results for each page
+        if len(finalList) <= 5:
+            page_content.append(getResult(finalList))
+            em = discord.Embed(colour=discord.Colour.blurple(), title=f'Full statistics for all reactions used', )
+            em.add_field(name='Reactions used in server', value=f'{page_content[0]}', inline=False)
+            await ctx.send(embed=em)
+            return
+
+        # Aggregate results into 5 results per page
+        index = 0
+        while index < len(finalList):
+            # For the last page, get remaining results
+            if index > len(finalList) - 5:
+                res = getResult(finalList[index:len(finalList)], index + 1)
+                page_content.append(res)
+                index += 5
+            else:
+                res = getResult(finalList[index:index + 5], index + 1)
+                page_content.append(res)
+                index += 5
+
+        # Add embeds into final pages
+        final_pages = []
+        for i in range(len(page_content)):
+            embed = discord.Embed(colour=discord.Colour.blurple(), title=f'Page {i + 1}/{len(page_content)}',
+                                  description=page_content[i], )
+            if i == 0:
+                embed.title = f'Page {i+1}/{len(page_content)} Full statistics for all reactions used'
+            final_pages.append(embed)
+
+        curr_page = 0
+
+        message = await ctx.send(embed=final_pages[curr_page])
+        await message.add_reaction(arrow_start)
+        await message.add_reaction(left_arrow)
+        await message.add_reaction(right_arrow)
+        await message.add_reaction(arrow_end)
+
+        # Wait for the author to flip the page with a reaction
+        def check(reaction, user):
+            return user == msg_author
+
+        # Let user scroll between pages
+        while True:
+            try:
+                # wait_for takes in the event to wait for and a check function that takes the arguments of the event
+                reaction, user = await self.client.wait_for('reaction_add', timeout=45.0, check=check)
+
+                # next page, last page, prev page, first page
+                if str(reaction.emoji) == right_arrow:
+                    await message.remove_reaction(right_arrow, user)
+
+                    # If already on last page, skip
+                    if curr_page == len(final_pages) - 1:
+                        continue
+
+                    curr_page += 1
+                    await message.edit(embed=final_pages[curr_page])
+                elif str(reaction.emoji) == arrow_end:
+                    await message.remove_reaction(arrow_end, user)
+                    if curr_page == len(final_pages) - 1:
+                        continue
+
+                    curr_page = len(final_pages) - 1
+                    await message.edit(embed=final_pages[curr_page])
+                elif str(reaction.emoji) == left_arrow:
+                    await message.remove_reaction(left_arrow, user)
+                    if curr_page == 0:
+                        continue
+
+                    curr_page -= 1
+                    await message.edit(embed=final_pages[curr_page])
+                elif str(reaction.emoji) == arrow_start:
+                    await message.remove_reaction(arrow_start, user)
+                    if curr_page == 0:
+                        continue
+
+                    curr_page = 0
+                    await message.edit(embed=final_pages[curr_page])
+
+            except asyncio.TimeoutError:
+                print('bad')
+                break
 
 
 def setup(client):
