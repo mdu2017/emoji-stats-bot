@@ -4,6 +4,14 @@ import psycopg2
 from psycopg2 import pool
 import discord
 
+# Emojis for turning page back/forward
+right_arrow = '\U000025B6'
+left_arrow = '\U000025C0'
+# right_arrow = '\U000027A1'
+# left_arrow = '\U00002B05'
+arrow_end = '\U000023ED'
+arrow_start = '\U000023EE'
+
 file = open('dbcred.txt', 'r')
 credList = file.read().splitlines()
 usr = credList[0]
@@ -29,6 +37,8 @@ else:
 
 # Database credentials
 # pswd = open('passwd.txt', 'r').read()
+
+emoji_image_url = 'https://images.emojiterra.com/google/android-10/512px/1f43c.png'
 
 # read token from txt file
 token = open("token.txt", "r").read()
@@ -242,6 +252,7 @@ def fullChStatsResult(reactData, emojiData):
         filteredList[chname].append(f'Most used reaction: {emoji} - used ({cnt}) times\n\n')
 
     embed = discord.Embed(colour=discord.Colour.blurple())
+    embed.set_thumbnail(url=emoji_image_url)
     for key in filteredList:
         info = ''
         for tup in filteredList[key]:
@@ -249,6 +260,7 @@ def fullChStatsResult(reactData, emojiData):
         info += '\n'
 
         embed.add_field(name=f'#{key}', value=f'{info}', inline=False)
+
 
     return embed
 
@@ -267,5 +279,5 @@ def getConnection():
 
 
 # Get the final results in a single message
-def getResult(finalList):
-    return '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=1))
+def getResult(finalList, ndx=1):
+    return '\n\n'.join('#{} {}'.format(*item) for item in enumerate(finalList, start=ndx))

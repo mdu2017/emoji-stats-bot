@@ -1,10 +1,11 @@
 import os
 from const import *
 from discord.ext import commands
+import discord
 
 # Command prefix is .
-client = commands.Bot(command_prefix='.')
-
+client = commands.Bot(command_prefix='!e ')
+client.remove_command('help')
 
 @client.command(brief='(ex: .load <cogName>)')
 async def load(ctx, extension):
@@ -47,16 +48,16 @@ async def on_ready():
                 cnt       int,
                 emojitype VARCHAR(20),
                 guildid   BIGINT,
-                PRIMARY KEY(chname, reactid, emojitype)
+                PRIMARY KEY(chname, reactid, emojitype, guildid)
             )""")
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS users(
+                CREATE TABLE IF NOT EXISTS users (
                 userid VARCHAR(100) NOT NULL,
                 reactid TEXT,
                 cnt		INT,
                 emojitype VARCHAR(20),
                 guildid   BIGINT,
-                PRIMARY KEY(userid, reactid, emojitype)
+                PRIMARY KEY(userid, reactid, emojitype, guildid)
             )""" )
             print(f'Tables created successfully')
             conn.commit()
@@ -69,3 +70,5 @@ async def on_ready():
 
 # client.loop.run_until_complete(create_db_pool())  # Keep db pool open
 client.run(token)  # token from text file
+
+
