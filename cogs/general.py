@@ -90,6 +90,11 @@ class General(commands.Cog):
     async def ping(self, ctx):
         await ctx.send(f'{round(self.client.latency * 1000)}ms')
 
+    # @commands.command(brief='Renames bot')
+    # async def rename(self, ctx, *args):
+    #     name = ' '.join(args)
+    #     await self.client.user.edit(username=name)
+
 
 def setup(client):
     client.add_cog(General(client))
