@@ -270,7 +270,7 @@ class Message(commands.Cog):
         # Wait for the author to flip the page with a reaction
         def check(reaction, user):
             # return user == msg_author (toggle this to allow only the person who initiated the command to use)
-            return True
+            return not user.bot
 
         # Let user scroll between pages
         while True:
@@ -440,7 +440,7 @@ class Message(commands.Cog):
         # Wait for the author to flip the page with a reaction
         def check(reaction, user):
             # return user == msg_author (toggle this to allow only the person who initiated the command to use)
-            return True
+            return not user.bot
 
         # Let user scroll between pages
         while True:
