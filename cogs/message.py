@@ -202,7 +202,7 @@ class Message(commands.Cog):
         cursor.execute("""
             SELECT reactid, cnt FROM users
             WHERE userid = %s AND users.emojitype = 'message' AND guildid = %s
-            ORDER BY cnt DESC LIMIT 5;""", (str(userID), guild_id))
+            ORDER BY cnt DESC;""", (str(userID), guild_id))
         record = cursor.fetchall()
 
         if len(record) == 0:
