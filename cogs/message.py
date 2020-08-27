@@ -211,32 +211,108 @@ class Message(commands.Cog):
 
         # Fetch total emojis used
         emojiSum = getEmojiSumUsrMsg(cursor, guild_id, userID)
-
-        # Process final list for displaying
         finalList = processListMsg(self.client, record, emojiSum)
+
+        # Close db stuff
+        cursor.close()
+        ps_pool.putconn(conn)
 
         # If no reaction data from query, return empty
         if len(finalList) == 0:
             await ctx.send(f'{username}\' has no emoji data')
             return
 
-        favoriteEmoji = finalList[0]
-        result = getResult(finalList)
+        # If only 1 page, then get the result and display
+        page_content = []  # the final list of results for each page
+        if len(finalList) <= 5:
+            page_content.append(getResult(finalList))
+            em = discord.Embed(colour=discord.Colour.blurple(), title=f'Full statistics for all emojis used', )
+            em.add_field(name='Emojis used in server', value=f'{page_content[0]}', inline=False)
+            await ctx.send(embed=em)
+            return
 
-        # Create customized embed
-        em = discord.Embed(
-            colour=discord.Colour.blurple(),
-        )
-        em.set_thumbnail(url=emoji_image_url)
-        em.add_field(name=f'{username}\'s {len(finalList)} most used emojis in the server',
-                     value=f'{result}', inline=False)
+        # TODO: multiple page embeds
+        index = 0  # index keeps track of current item's index
 
-        # Display results
-        await ctx.send(embed=em)
+        # Aggregate results into 5 results per page
+        while index < len(finalList):
+            # For the last page, get remaining results
+            if index > len(finalList) - 5:
+                res = getResult(finalList[index:len(finalList)], index + 1)
+                page_content.append(res)
+                index += 5
+            else:
+                res = getResult(finalList[index:index + 5], index + 1)
+                page_content.append(res)
+                index += 5
 
-        # Close db stuff
-        cursor.close()
-        ps_pool.putconn(conn)
+        # Add embeds into final pages
+        final_pages = []
+        for i in range(len(page_content)):
+            embed = discord.Embed(colour=discord.Colour.blurple(), title=f'Page {i + 1}/{len(page_content)}',
+                                  description=page_content[i], )
+            if i == 0:
+                embed.title = f'Page {i + 1}/{len(page_content)}\n' \
+                              f'{username}\'s {len(finalList)} most used emojis in the server'
+
+            embed.set_thumbnail(url=emoji_image_url)
+            final_pages.append(embed)
+
+        curr_page = 0
+
+        # Display first page and add buttons
+        message = await ctx.send(embed=final_pages[curr_page])
+        await message.add_reaction(arrow_start)
+        await message.add_reaction(left_arrow)
+        await message.add_reaction(right_arrow)
+        await message.add_reaction(arrow_end)
+
+        # Wait for the author to flip the page with a reaction
+        def check(reaction, user):
+            # return user == msg_author (toggle this to allow only the person who initiated the command to use)
+            return True
+
+        # Let user scroll between pages
+        while True:
+            try:
+                # wait_for takes in the event to wait for and a check function that takes the arguments of the event
+                reaction, user = await self.client.wait_for('reaction_add', timeout=30.0, check=check)
+
+                # next page, last page, prev page, first page
+                if str(reaction.emoji) == right_arrow:
+                    await message.remove_reaction(right_arrow, user)
+
+                    # If already on last page, skip
+                    if curr_page == len(final_pages) - 1:
+                        continue
+
+                    curr_page += 1
+                    await message.edit(embed=final_pages[curr_page])
+                elif str(reaction.emoji) == arrow_end:
+                    await message.remove_reaction(arrow_end, user)
+                    if curr_page == len(final_pages) - 1:
+                        continue
+
+                    curr_page = len(final_pages) - 1
+                    await message.edit(embed=final_pages[curr_page])
+                elif str(reaction.emoji) == left_arrow:
+                    await message.remove_reaction(left_arrow, user)
+                    if curr_page == 0:
+                        continue
+
+                    curr_page -= 1
+                    await message.edit(embed=final_pages[curr_page])
+                elif str(reaction.emoji) == arrow_start:
+                    await message.remove_reaction(arrow_start, user)
+                    if curr_page == 0:
+                        continue
+
+                    curr_page = 0
+                    await message.edit(embed=final_pages[curr_page])
+
+            except asyncio.TimeoutError:
+                print('bad')
+                break
 
     @commands.command(brief='Lists user\'s favorite emote')
     async def favemoji(self, ctx, *args):
