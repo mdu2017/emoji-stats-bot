@@ -18,17 +18,14 @@ Usage:
 | Command        | Description  |
 | ------------- |:-------------:| 
 | .ping       | shows network ping |
-| .cls \<num\>      | Deletes the <num> most recent messages  | 
-| .topreacts \<amt\>  | Shows the X most popular reactions | 
-| .userreacts \<username\>  | Shows a user's most used reactions| 
-| .fullreactstats | Shows stats on all reactions used| 
-| .topemojis \<amt\>  | Shows the X most popular emojis | 
-| .useremojis \<username\>  | Shows user's most used emojis | 
-| .fullmsgstats \<amt\>  | Shows stats for all emojis used in messages | 
+| .topreacts  | Shows the 5 most popular reactions | 
+| .userreacts \<username\> \<mode\>  | Shows a user's most used reactions - mode is optional (unicode or custom)| 
+| .fullreactstats \<mode\> | Shows stats on all reactions used - mode is optional (unicode or custom)| 
+| .topemojis  | Shows the 5 most popular emojis | 
+| .useremojis \<username\> \<mode\>  | Shows user's most used emojis - mode is optional (unicode or custom) | 
+| .fullmsgstats \<mode\>  | Shows stats for all emojis used in messages - mode is optional (unicode or custom) | 
 | .channelstats \<channel_name\> \<option\>  | Shows a channel's top 3 most popular reactions/emojis |
 | .fullchstats | Shows the most popular reaction/emoji for every channel | 
-
-\<amt\> - is any number between 1-20 
 
 \<username\> - can use Discord nickname or mention
 
@@ -39,5 +36,5 @@ Usage:
 Libraries used:
 
 discord.py
-
 psycopg2
+
