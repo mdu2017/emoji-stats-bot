@@ -187,7 +187,25 @@ class Message(commands.Cog):
     @commands.command(brief='Displays most used emojis in messages by user')
     async def useremojis(self, ctx, *args):
         usr_name = ' '.join(args)
+
+        # If last word is unicode or custom, it will grab specific types of reactions
+        lastNdx = usr_name.rfind(' ')
+        mode = 'normal'
+        if lastNdx != -1:
+            lastWord = usr_name[lastNdx + 1:]
+            print(f'Last word: {lastWord}')
+            if lastWord == 'unicode' or lastWord == 'UNICODE':
+                mode = 'unicode'
+                usr_name = usr_name[:lastNdx]
+            elif lastWord == 'custom' or lastWord == 'CUSTOM':
+                mode = 'custom'
+                usr_name = usr_name[:lastNdx]
+
         user, username, userID, valid = processName(self.client, ctx, usr_name)
+
+        msg_author = ''
+        async for message in ctx.channel.history(limit=1):
+            msg_author = message.author
 
         # Check for empty user
         if not valid:
@@ -198,12 +216,7 @@ class Message(commands.Cog):
         conn, cursor = getConnection()
         guild_id = ctx.guild.id
 
-        # Leave off userid to fit into dictionary
-        cursor.execute("""
-            SELECT reactid, cnt FROM users
-            WHERE userid = %s AND users.emojitype = 'message' AND guildid = %s
-            ORDER BY cnt DESC;""", (str(userID), guild_id))
-        record = cursor.fetchall()
+        record = getUserEmojis(cursor, guild_id, mode, userID)
 
         if len(record) == 0:
             await ctx.send('No emoji data found')
@@ -270,7 +283,7 @@ class Message(commands.Cog):
         # Wait for the author to flip the page with a reaction
         def check(reaction, user):
             # return user == msg_author (toggle this to allow only the person who initiated the command to use)
-            return not user.bot
+            return not user.bot and user == msg_author
 
         # Let user scroll between pages
         while True:
@@ -363,22 +376,23 @@ class Message(commands.Cog):
         await ctx.send(embed=em)
 
     @commands.command(brief='Stat for every emoji used in messages')
-    async def fullmsgstats(self, ctx):
+    async def fullmsgstats(self, ctx, mode='normal'):
         guild_id = ctx.guild.id
         msg_author = ''
         async for message in ctx.channel.history(limit=1):
             msg_author = message.author
             # print(f'msg author {msg_author}')
 
+        # If last word is unicode or custom, it will grab specific types of reactions
+        if mode == 'unicode' or mode == 'UNICODE':
+            mode = 'unicode'
+        elif mode == 'custom' or mode == 'CUSTOM':
+            mode = 'custom'
+
         # Get db connection and check
         conn, cursor = getConnection()
 
-        cursor.execute("""
-            SELECT reactid, SUM(cnt)
-            FROM users WHERE users.emojitype = 'message' AND guildid = %s
-            GROUP BY reactid
-            ORDER BY SUM(cnt) DESC""", (guild_id,))
-        record = cursor.fetchall()
+        record = getFullMsgStats(cursor, guild_id, mode)
 
         if len(record) == 0:
             await ctx.send('No emoji data found')
@@ -488,6 +502,49 @@ class Message(commands.Cog):
 def setup(client):
     client.add_cog(Message(client))
 
+
+def getUserEmojis(cursor, guild_id, mode, userID):
+    if mode == 'unicode':
+        cursor.execute("""
+        SELECT reactid, cnt FROM users
+        WHERE userid = %s AND users.emojitype = 'message' AND guildid = %s AND reactid NOT LIKE '<%%'
+        ORDER BY cnt DESC;""", (str(userID), guild_id))
+    elif mode == 'custom':
+        cursor.execute("""
+        SELECT reactid, cnt FROM users
+        WHERE userid = %s AND users.emojitype = 'message' AND guildid = %s AND reactid LIKE '<%%'
+        ORDER BY cnt DESC;""", (str(userID), guild_id))
+    else:
+        cursor.execute("""
+        SELECT reactid, cnt FROM users
+        WHERE userid = %s AND users.emojitype = 'message' AND guildid = %s
+        ORDER BY cnt DESC;""", (str(userID), guild_id))
+
+    record = cursor.fetchall()
+    return record
+
+def getFullMsgStats(cursor, guild_id, mode):
+    if mode == 'unicode':
+        cursor.execute("""
+        SELECT reactid, SUM(cnt)
+        FROM users WHERE users.emojitype = 'message' AND guildid = %s AND reactid NOT LIKE '<%%'
+        GROUP BY reactid
+        ORDER BY SUM(cnt) DESC""", (guild_id,))
+    elif mode == 'custom':
+        cursor.execute("""
+        SELECT reactid, SUM(cnt)
+        FROM users WHERE users.emojitype = 'message' AND guildid = %s AND reactid LIKE '<%%'
+        GROUP BY reactid
+        ORDER BY SUM(cnt) DESC""", (guild_id,))
+    else:
+        cursor.execute("""
+        SELECT reactid, SUM(cnt)
+        FROM users WHERE users.emojitype = 'message' AND guildid = %s
+        GROUP BY reactid
+        ORDER BY SUM(cnt) DESC""", (guild_id,))
+
+    record = cursor.fetchall()
+    return record
 
 # Gets sum of total emojis used in messages
 def getEmojiSumMsg(cursor, guild_id):

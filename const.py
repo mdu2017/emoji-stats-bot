@@ -49,7 +49,6 @@ custom_status = cycle([f'!e help'])
 # Channels to disable bot commands for
 rm_channels = []
 
-
 def getEmojiName(key):
     name = 'EMOJI'
     try:
