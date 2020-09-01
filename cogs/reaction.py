@@ -22,6 +22,10 @@ class Reaction(commands.Cog):
         if emoji_str == left_arrow or emoji_str == right_arrow or emoji_str == arrow_start or emoji_str == arrow_end:
             return
 
+        # Ignore reaction if user is a bot
+        if user.bot:
+            return
+
         channel_name = reaction.message.channel.name  # TODO: Add channel info to queries
         userid = str(user.id)
         value = str(reaction.emoji)
@@ -153,7 +157,25 @@ class Reaction(commands.Cog):
     @commands.command(brief='Get list of top 10 most used reacts by user (.userreacts <@username/nickname>')
     async def userreacts(self, ctx, *args):
         usr_name = ' '.join(args)
+
+        # If last word is unicode or custom, it will grab specific types of reactions
+        lastNdx = usr_name.rfind(' ')
+        mode = 'normal'
+        if lastNdx != -1:
+            lastWord = usr_name[lastNdx+1:]
+            print(f'Last word: {lastWord}')
+            if lastWord == 'unicode' or lastWord == 'UNICODE':
+                mode = 'unicode'
+                usr_name = usr_name[:lastNdx]
+            elif lastWord == 'custom' or lastWord == 'CUSTOM':
+                mode = 'custom'
+                usr_name = usr_name[:lastNdx]
+
         user, username, userID, valid = processName(self.client, ctx, usr_name)
+
+        msg_author = ''
+        async for message in ctx.channel.history(limit=1):
+            msg_author = message.author
 
         if not valid:
             await ctx.send(f'User {usr_name} was not found\nUsage: !e userreacts <@username>')
@@ -161,17 +183,9 @@ class Reaction(commands.Cog):
 
         # Get db connection and check
         conn, cursor = getConnection()
-
         guild_id = ctx.guild.id
 
-        sqlString = """
-            SELECT reactid, cnt FROM users
-            WHERE userid = %s AND guildid = %s
-            AND users.emojitype = 'react'
-            ORDER BY cnt DESC LIMIT 5;"""
-
-        cursor.execute(sqlString, (str(userID), guild_id))
-        record = cursor.fetchall()
+        record = getUserReacts(cursor, guild_id, userID, mode)
 
         # Check for empty record
         if len(record) == 0:
@@ -181,7 +195,98 @@ class Reaction(commands.Cog):
         # Fetch single sum value
         emojiSum = getEmojiSumRctUsr(cursor, userID, guild_id)
         finalList = processListRct(self.client, record, emojiSum)
-        result = getResult(finalList)
+
+        # If only 1 page, then get the result and display
+        page_content = []  # the final list of results for each page
+        if len(finalList) <= 5:
+            page_content.append(getResult(finalList))
+            em = discord.Embed(colour=discord.Colour.blurple(), title=f'Full statistics for all reactions used', )
+            em.add_field(name='Reactions used in server', value=f'{page_content[0]}', inline=False)
+            await ctx.send(embed=em)
+            return
+
+        # TODO: multiple page embeds
+        index = 0  # index keeps track of current item's index
+
+        # Aggregate results into 5 results per page
+        while index < len(finalList):
+            # For the last page, get remaining results
+            if index > len(finalList) - 5:
+                res = getResult(finalList[index:len(finalList)], index + 1)
+                page_content.append(res)
+                index += 5
+            else:
+                res = getResult(finalList[index:index + 5], index + 1)
+                page_content.append(res)
+                index += 5
+
+        # Add embeds into final pages
+        final_pages = []
+        for i in range(len(page_content)):
+            embed = discord.Embed(colour=discord.Colour.blurple(), title=f'Page {i + 1}/{len(page_content)}',
+                                  description=page_content[i], )
+            if i == 0:
+                embed.title = f'Page {i + 1}/{len(page_content)}\n' \
+                              f'{username}\'s {len(finalList)} most used reactions in the server'
+
+            embed.set_thumbnail(url=emoji_image_url)
+            final_pages.append(embed)
+
+        curr_page = 0
+
+        # Display first page and add buttons
+        message = await ctx.send(embed=final_pages[curr_page])
+        await message.add_reaction(arrow_start)
+        await message.add_reaction(left_arrow)
+        await message.add_reaction(right_arrow)
+        await message.add_reaction(arrow_end)
+
+        # Wait for the author to flip the page with a reaction
+        def check(reaction, user):
+            # return user == msg_author (toggle this to allow only the person who initiated the command to use)
+            return not user.bot and user == msg_author
+
+        # Let user scroll between pages
+        while True:
+            try:
+                # wait_for takes in the event to wait for and a check function that takes the arguments of the event
+                reaction, user = await self.client.wait_for('reaction_add', timeout=30.0, check=check)
+
+                # next page, last page, prev page, first page
+                if str(reaction.emoji) == right_arrow:
+                    await message.remove_reaction(right_arrow, user)
+
+                    # If already on last page, skip
+                    if curr_page == len(final_pages) - 1:
+                        continue
+
+                    curr_page += 1
+                    await message.edit(embed=final_pages[curr_page])
+                elif str(reaction.emoji) == arrow_end:
+                    await message.remove_reaction(arrow_end, user)
+                    if curr_page == len(final_pages) - 1:
+                        continue
+
+                    curr_page = len(final_pages) - 1
+                    await message.edit(embed=final_pages[curr_page])
+                elif str(reaction.emoji) == left_arrow:
+                    await message.remove_reaction(left_arrow, user)
+                    if curr_page == 0:
+                        continue
+
+                    curr_page -= 1
+                    await message.edit(embed=final_pages[curr_page])
+                elif str(reaction.emoji) == arrow_start:
+                    await message.remove_reaction(arrow_start, user)
+                    if curr_page == 0:
+                        continue
+
+                    curr_page = 0
+                    await message.edit(embed=final_pages[curr_page])
+
+            except asyncio.TimeoutError:
+                print('bad')
+                break
 
         # Display results
         embed = discord.Embed(colour=discord.Colour.blurple())
@@ -242,7 +347,7 @@ class Reaction(commands.Cog):
         await ctx.send(embed=em)
 
     @commands.command(brief='Lists full stats for every react (.fullreactstats)')
-    async def fullreactstats(self, ctx):
+    async def fullreactstats(self, ctx, mode='normal'):
         # Get db connection and check
         conn, cursor = getConnection()
         guild_id = ctx.guild.id
@@ -250,13 +355,20 @@ class Reaction(commands.Cog):
         async for message in ctx.channel.history(limit=1):
             msg_author = message.author
 
+        # If last word is unicode or custom, it will grab specific types of reactions
+        if mode == 'unicode' or mode == 'UNICODE':
+            mode = 'unicode'
+        elif mode == 'custom' or mode == 'CUSTOM':
+            mode = 'custom'
+
         # Grabs all reactions
-        cursor.execute("""
-            SELECT reactid, SUM(cnt)
-            FROM users WHERE users.emojitype = 'react' AND guildid = %s
-            GROUP BY reactid
-            ORDER BY SUM(cnt) DESC""", (guild_id,))
-        record = cursor.fetchall()
+        record = getFullReactStats(cursor, guild_id, mode)
+        # cursor.execute("""
+        #             SELECT reactid, SUM(cnt)
+        #             FROM users WHERE users.emojitype = 'react' AND guildid = %s
+        #             GROUP BY reactid
+        #             ORDER BY SUM(cnt) DESC""", (guild_id,))
+        # record = cursor.fetchall()
 
         # Handle empty results
         if len(record) == 0:
@@ -299,7 +411,7 @@ class Reaction(commands.Cog):
             embed = discord.Embed(colour=discord.Colour.blurple(), title=f'Page {i + 1}/{len(page_content)}',
                                   description=page_content[i], )
             if i == 0:
-                embed.title = f'Page {i+1}/{len(page_content)} Full statistics for all reactions used'
+                embed.title = f'Page {i + 1}/{len(page_content)} Full statistics for all reactions used'
             final_pages.append(embed)
 
         curr_page = 0
@@ -312,7 +424,7 @@ class Reaction(commands.Cog):
 
         # Wait for the author to flip the page with a reaction
         def check(reaction, user):
-            return user == msg_author
+            return user == msg_author and not user.bot
 
         # Let user scroll between pages
         while True:
@@ -391,6 +503,60 @@ def getTopReacts(cursor, guild_id, amt, mode):
 
     return record, title
 
+
+def getUserReacts(cursor, guild_id, user_id, mode):
+    sqlString = ''
+    if mode == 'custom':
+        sqlString = """
+        SELECT reactid, cnt FROM users
+        WHERE userid = %s AND guildid = %s
+        AND users.emojitype = 'react' AND reactid LIKE '<%%'
+        ORDER BY cnt DESC;"""
+        # print('Getting custom emojis')
+    elif mode == 'unicode':
+        sqlString = """
+        SELECT reactid, cnt FROM users
+        WHERE userid = %s AND guildid = %s
+        AND users.emojitype = 'react' AND reactid NOT LIKE '<%%'
+        ORDER BY cnt DESC;"""
+        # print('Getting unicode emojis')
+    else:
+        sqlString = """
+        SELECT reactid, cnt FROM users
+        WHERE userid = %s AND guildid = %s
+        AND users.emojitype = 'react'
+        ORDER BY cnt DESC;"""
+        # print('Normal')
+
+    cursor.execute(sqlString, (str(user_id), guild_id))
+    record = cursor.fetchall()
+
+    return record
+
+def getFullReactStats(cursor, guild_id, mode):
+    if mode == 'unicode':
+        cursor.execute("""
+        SELECT reactid, SUM(cnt)
+        FROM users WHERE users.emojitype = 'react' AND guildid = %s AND reactid NOT LIKE '<%%'
+        GROUP BY reactid
+        ORDER BY SUM(cnt) DESC""", (guild_id,))
+    elif mode == 'custom':
+        cursor.execute("""
+        SELECT reactid, SUM(cnt)
+        FROM users WHERE users.emojitype = 'react' AND guildid = %s AND reactid LIKE '<%%'
+        GROUP BY reactid
+        ORDER BY SUM(cnt) DESC""", (guild_id,))
+    else:
+        cursor.execute("""
+        SELECT reactid, SUM(cnt)
+        FROM users WHERE users.emojitype = 'react' AND guildid = %s
+        GROUP BY reactid
+        ORDER BY SUM(cnt) DESC""", (guild_id,))
+
+    record = cursor.fetchall()
+    return record
+
+
 def getEmojiSumRct(cursor, guild_id):
     cursor.execute("""
                 SELECT SUM(cnt) FROM users 
@@ -398,6 +564,7 @@ def getEmojiSumRct(cursor, guild_id):
     emojiSum = cursor.fetchone()
     emojiSum = int(emojiSum[0])
     return emojiSum
+
 
 def getEmojiSumRctUsr(cursor, userID, guild_id):
     sumSql = """SELECT SUM(cnt) FROM users WHERE userid = %s AND emojitype = 'react' AND guildid = %s"""

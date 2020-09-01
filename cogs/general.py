@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands, tasks
-from const import *
+import const
 
 
 class General(commands.Cog):
@@ -29,7 +29,7 @@ class General(commands.Cog):
     # Overrides inherited cog_check method (Check before executing any commands)
     async def cog_check(self, ctx):
         # If bot is disabled in the specified channel, don't execute command
-        if ctx.channel.name in rm_channels:
+        if ctx.channel.name in const.rm_channels:
             return False
 
         return True
@@ -89,6 +89,18 @@ class General(commands.Cog):
     @commands.command(brief='Displays network latency')
     async def ping(self, ctx):
         await ctx.send(f'{round(self.client.latency * 1000)}ms')
+
+    # @commands.command(brief='Toggle normal, unicode, or custom emojis/reactions')
+    # async def toggle(self, ctx, *args):
+    #     choice = ' '.join(args)
+    #     if choice == 'unicode' or choice == 'UNICODE':
+    #         const.current_type = 'unicode'
+    #     elif choice == 'custom' or choice == 'CUSTOM':
+    #         const.current_type = 'custom'
+    #     else:
+    #         const.current_type = 'normal'
+    #
+    #     print(f'Set to {const.current_type} mode')
 
     # @commands.command(brief='Renames bot')
     # async def rename(self, ctx, *args):
