@@ -28,11 +28,11 @@ Usage:
 | chstats (channel_name) (option) | Shows a channel's top 3 most popular reactions/emojis |
 | fullchstats                     | Shows the most popular reaction/emoji for every channel |
 
-\<username\> - can use Discord nickname or mention
+(username) - can use Discord nickname or mention
 
-\<channel_name\> - Discord Text Channel name (no # needed)
+(channel_name) - Discord Text Channel name (no # needed)
 
-\<option\> -'react' or 'message'
+(option) -'react' or 'message'
 
 Libraries used:
 
