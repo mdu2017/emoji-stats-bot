@@ -3,6 +3,7 @@ from itertools import cycle
 import psycopg2
 from psycopg2 import pool
 import discord
+import datetime
 
 # Emojis for turning page back/forward
 right_arrow = '\U000025B6'
@@ -21,13 +22,23 @@ port = credList[3]
 db = credList[4]
 
 # Setup db connection at start
+# ps_pool = psycopg2.pool.SimpleConnectionPool(
+#     1, 20,
+#     user=usr,
+#     password=pwd,
+#     host=host,
+#     port=port,
+#     database=db
+# )
+
+# TODO: Test database
 ps_pool = psycopg2.pool.SimpleConnectionPool(
     1, 20,
-    user=usr,
-    password=pwd,
-    host=host,
-    port=port,
-    database=db
+    user='postgres',
+    password='Hdqtpm06',
+    host='127.0.0.1',
+    port='5432',
+    database='emojiv2'
 )
 
 if ps_pool:

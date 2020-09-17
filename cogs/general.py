@@ -1,7 +1,9 @@
 import discord
 from discord.ext import commands, tasks
 import const
-
+import datetime
+from const import getConnection
+from const import ps_pool
 
 class General(commands.Cog):
     def __init__(self, client):
@@ -25,6 +27,15 @@ class General(commands.Cog):
     async def change_status(self):
         activity = discord.Activity(type=discord.ActivityType.watching, name='!e help')
         await self.client.change_presence(activity=activity)
+
+    # TODO: delete unused emoji data after 3 weeks (clear stuff every 3 days)
+    # Change bot status every hour
+    # @tasks.loop(hours=72)
+    # async def change_status(self):
+    #     activity = discord.Activity(type=discord.ActivityType.watching, name='!e help')
+    #     await self.client.change_presence(activity=activity)
+
+    # TODO: opt out of emoji stats for user
 
     # Overrides inherited cog_check method (Check before executing any commands)
     async def cog_check(self, ctx):
@@ -85,28 +96,115 @@ class General(commands.Cog):
 
         await author.send(embed=em)
 
-    # Displays network ping
-    @commands.command(brief='Displays network latency')
-    async def ping(self, ctx):
-        await ctx.send(f'{round(self.client.latency * 1000)}ms')
+    @commands.Cog.listener()
+    async def on_guild_join(self, guild):
+        conn, cursor = getConnection()
+        guild_id = str(guild.id)
+        guild_name = guild.name
 
-    # @commands.command(brief='Toggle normal, unicode, or custom emojis/reactions')
-    # async def toggle(self, ctx, *args):
-    #     choice = ' '.join(args)
-    #     if choice == 'unicode' or choice == 'UNICODE':
-    #         const.current_type = 'unicode'
-    #     elif choice == 'custom' or choice == 'CUSTOM':
-    #         const.current_type = 'custom'
-    #     else:
-    #         const.current_type = 'normal'
-    #
-    #     print(f'Set to {const.current_type} mode')
+        # Add to list of guilds
+        cursor.execute("""
+        INSERT INTO guild(guildid, guildname)
+            VALUES (%s, %s)
+            ON CONFLICT DO NOTHING
+            """, (guild_id, guild_name))
+        conn.commit()
 
-    # @commands.command(brief='Renames bot')
-    # async def rename(self, ctx, *args):
-    #     name = ' '.join(args)
-    #     await self.client.user.edit(username=name)
+        # Read channel data
+        for channel in guild.text_channels:
+            ch_id = channel.id
+            ch_name = channel.name
 
+            cursor.execute("""
+                            INSERT INTO channel(chid, chname, guildid)
+                            VALUES (%s, %s, %s)
+                            ON CONFLICT DO NOTHING
+                            """, (ch_id, ch_name, guild_id))
+        conn.commit()
+
+        # Read user list
+        for member in guild.members:
+            user_id = str(member.id)
+
+            # Skip adding bot ids
+            if member.bot:
+                continue
+
+            cursor.execute("""
+                INSERT INTO users(userid, guildid, enabled)
+                VALUES (%s, %s, True)
+                ON CONFLICT DO NOTHING""", (user_id, guild_id))
+        conn.commit()
+
+        cursor.close()  # Close cursor
+        ps_pool.putconn(conn)  # Return connection to pool
+
+    @commands.command(brief='refresh the database')
+    async def refreshData(self, ctx):
+        conn, cursor = getConnection()
+
+        for guild in self.client.guilds:
+            guild_id = str(guild.id)
+            guild_name = guild.name
+
+            # Add to list of guilds
+            cursor.execute("""
+                    INSERT INTO guild(guildid, guildname)
+                        VALUES (%s, %s)
+                        ON CONFLICT DO NOTHING
+                        """, (guild_id, guild_name))
+            conn.commit()
+
+            # Read channel data
+            for channel in guild.text_channels:
+                ch_id = channel.id
+                ch_name = channel.name
+
+                cursor.execute("""
+                    INSERT INTO channel(chid, chname, guildid)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT DO NOTHING
+                    """, (ch_id, ch_name, guild_id))
+            conn.commit()
+
+            # Read user list
+            for member in guild.members:
+                user_id = str(member.id)
+
+                # Skip adding bot ids
+                if member.bot:
+                    continue
+
+                cursor.execute("""
+                    INSERT INTO users(userid, guildid)
+                    VALUES (%s, %s) ON CONFLICT DO NOTHING""", (user_id, guild_id))
+            conn.commit()
+
+        cursor.close()  # Close cursor
+        ps_pool.putconn(conn)  # Return connection to pool
+
+    @commands.command(brief='refresh the database')
+    async def testtimestamp(self, ctx):
+        conn, cursor = getConnection()
+
+        today = datetime.datetime.today()
+        print(f'today {today}')
+        week3ago = today - datetime.timedelta(weeks=3)
+        print(f'3 weeks ago {week3ago}')
+
+        # TODO: query for emoji timestamp
+
+        # cursor.execute("""
+        #     INSERT INTO emojis(emoji, emojitype, userid, guildid, cnt, emojidate, chid)
+        #     VALUES(%s, %s, %s, %s, %s, %s, %s)
+        #     ON CONFLICT(emoji, emojitype, userid, guildid)
+        #     DO UPDATE SET cnt = emojis.cnt + 1, emojidate = %s
+        # """, ('BADDATA', 'react', '353037475016474637', guild_id, 1, week3ago, '739569231112437935', week3ago))
+        # conn.commit()
+
+
+        cursor.close()  # Close cursor
+        ps_pool.putconn(conn)  # Return connection to pool
 
 def setup(client):
     client.add_cog(General(client))

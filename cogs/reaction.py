@@ -3,6 +3,7 @@ import asyncio
 import discord
 from discord.ext import commands
 from const import *
+import datetime
 
 
 class Reaction(commands.Cog):
@@ -26,51 +27,66 @@ class Reaction(commands.Cog):
         if user.bot:
             return
 
-        channel_name = reaction.message.channel.name  # TODO: Add channel info to queries
-        userid = str(user.id)
+        # Get channel id, user id, guild id, and emoji, and timestamp
+        ch_id = str(reaction.message.channel.id)
+        user_id = str(user.id)
         value = str(reaction.emoji)
+        guild_id = str(reaction.message.guild.id)
+        curr_time = datetime.datetime.now()
 
         # Get db connection and check
         conn, cursor = getConnection()
-        guild_id = reaction.message.guild.id
+
+        # Add user to database list
+
+
+        cursor.execute("""
+            INSERT INTO emojis(emoji, emojitype, userid, guildid, cnt, emojidate, chid)
+            VALUES(%s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT(emoji, emojitype, userid, guildid)
+            DO UPDATE SET cnt = emojis.cnt + 1, emojidate = %s
+        """, (value, 'react', user_id, str(guild_id), 1, curr_time, ch_id, curr_time))
+        conn.commit()
+
+        print("Finished inserting data")
 
         # Handle user data if it exists
-        cursor.execute("""
-            SELECT userid, reactid FROM users
-            WHERE userid = %s AND reactid = %s 
-            AND emojitype = 'react' AND guildid = %s""", (userid, value, guild_id))
-        userData = cursor.fetchall()
-        if len(userData) == 0:
-            cursor.execute("""
-                INSERT INTO users(userid, reactid, cnt, emojitype, guildid) 
-                VALUES(%s, %s, 1, 'react', %s)""", (userid, value, guild_id))
-            # print(f'successfully added -- \n')
-        else:
-            cursor.execute("""
-                    UPDATE users SET cnt = cnt + 1
-                    WHERE users.userid = %s AND users.reactid = %s 
-                    AND emojitype = 'react' AND guildid = %s""", (userid, value, guild_id))
+        # cursor.execute("""
+        #     SELECT userid, reactid FROM users
+        #     WHERE userid = %s AND reactid = %s
+        #     AND emojitype = 'react' AND guildid = %s""", (userid, value, guild_id))
+        # userData = cursor.fetchall()
+        # if len(userData) == 0:
+        #     cursor.execute("""
+        #         INSERT INTO users(userid, reactid, cnt, emojitype, guildid)
+        #         VALUES(%s, %s, 1, 'react', %s)""", (userid, value, guild_id))
+        #     # print(f'successfully added -- \n')
+        # else:
+        #     cursor.execute("""
+        #             UPDATE users SET cnt = cnt + 1
+        #             WHERE users.userid = %s AND users.reactid = %s
+        #             AND emojitype = 'react' AND guildid = %s""", (userid, value, guild_id))
             # print(f'successfully updated -- \n')
-        conn.commit()
+        # conn.commit()
 
         # Process channel data
-        cursor.execute("""
-            SELECT chname, reactid FROM channel
-            WHERE chname = %s AND reactid = %s 
-            AND emojitype = 'react' AND guildid = %s""", (channel_name, value, guild_id))
-        chData = cursor.fetchall()
-        if len(chData) == 0:
-            cursor.execute("""
-                INSERT INTO channel(chname, reactid, cnt, emojitype, guildid)
-                VALUES(%s, %s, 1, 'react', %s)""", (channel_name, value, guild_id))
-            # print('Channel reaction added')
-        else:
-            cursor.execute("""
-                UPDATE channel SET cnt = cnt + 1
-                WHERE chname = %s AND reactid = %s 
-                AND emojitype = 'react' AND guildid = %s""", (channel_name, value, guild_id))
-            # print('Channel reaction updated')
-        conn.commit()
+        # cursor.execute("""
+        #     SELECT chname, reactid FROM channel
+        #     WHERE chname = %s AND reactid = %s
+        #     AND emojitype = 'react' AND guildid = %s""", (channel_name, value, guild_id))
+        # chData = cursor.fetchall()
+        # if len(chData) == 0:
+        #     cursor.execute("""
+        #         INSERT INTO channel(chname, reactid, cnt, emojitype, guildid)
+        #         VALUES(%s, %s, 1, 'react', %s)""", (channel_name, value, guild_id))
+        #     # print('Channel reaction added')
+        # else:
+        #     cursor.execute("""
+        #         UPDATE channel SET cnt = cnt + 1
+        #         WHERE chname = %s AND reactid = %s
+        #         AND emojitype = 'react' AND guildid = %s""", (channel_name, value, guild_id))
+        #     # print('Channel reaction updated')
+        # conn.commit()
 
         cursor.close()  # Close cursor
         ps_pool.putconn(conn)  # Close connection
@@ -154,7 +170,7 @@ class Reaction(commands.Cog):
         ps_pool.putconn(conn)  # Close connection
 
     # Gets a list of reacts by user (Can use nickname or mention)
-    @commands.command(brief='Get list of top 10 most used reacts by user (.userreacts <@username/nickname>')
+    @commands.command(brief='Get list of most used reacts by user (.userreacts <@username/nickname>')
     async def userreacts(self, ctx, *args):
         usr_name = ' '.join(args)
 
@@ -195,6 +211,9 @@ class Reaction(commands.Cog):
         # Fetch single sum value
         emojiSum = getEmojiSumRctUsr(cursor, userID, guild_id)
         finalList = processListRct(self.client, record, emojiSum)
+
+        cursor.close()  # Close cursor
+        ps_pool.putconn(conn)  # Close connection
 
         # If only 1 page, then get the result and display
         page_content = []  # the final list of results for each page
@@ -287,15 +306,6 @@ class Reaction(commands.Cog):
             except asyncio.TimeoutError:
                 print('bad')
                 break
-
-        # Display results
-        embed = discord.Embed(colour=discord.Colour.blurple())
-        embed.set_thumbnail(url=emoji_image_url)
-        embed.add_field(name=f'{username}\'s top 5 reacts in this server!', value=f'{result}', inline=False)
-        await ctx.send(embed=embed)
-
-        cursor.close()  # Close cursor
-        ps_pool.putconn(conn)  # Close connection
 
     @commands.command(brief='Lists user\'s favorite reaction')
     async def favreact(self, ctx, *args):

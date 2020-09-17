@@ -7,6 +7,7 @@ import regex
 import re
 from const import *
 from itertools import islice
+import datetime
 
 
 class Message(commands.Cog):
@@ -497,6 +498,14 @@ class Message(commands.Cog):
             except asyncio.TimeoutError:
                 print('bad')
                 break
+
+    # TODO: Timestamps
+    # TODO: Gets X most recent, (options are day, week, month)
+    async def recent(self, ctx, num='3', option='week'):
+        print()
+
+        # Get current time,
+
 
 
 def setup(client):
