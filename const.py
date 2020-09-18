@@ -94,11 +94,11 @@ def processListMsg(client, record, emojiSum):
             if currEmoji is not None:
                 name = currEmoji.name
             finalList.append(
-                f'{spacing}{currEmoji} - {name} used ({data[key]}) times | {percentage}% of use.')
+                f'{spacing}{currEmoji} - {name} used (`{data[key]}`) times | `{percentage}%`')
 
         else:
             temp = getEmojiName(key)  # TODO: Some emojis won't have a name so 'EMOJI' is by default
-            finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times | {percentage}% of use.')
+            finalList.append(f'{spacing}{key} - {temp} used (`{data[key]}`) times | `{percentage}%`')
 
     return finalList
 
@@ -126,13 +126,13 @@ def processListChn(client, record, emojiSum, typeStr, channel_name):
             if currEmoji is not None:
                 name = currEmoji.name
             finalList.append(
-                f'{spacing}{currEmoji} - {name} used ({data[key]}) times '
-                f'| {percentage}% of {typeStr} used in #{channel_name}')
+                f'{spacing}{currEmoji} - {name} used (`{data[key]}`) times '
+                f'| `{percentage}%` of {typeStr} used in #{channel_name}')
 
         else:
             temp = getEmojiName(key)  # TODO: Some reacts won't have a name so 'EMOJI' is by default
-            finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times '
-                             f'| {percentage}% of {typeStr} used in #{channel_name}')
+            finalList.append(f'{spacing}{key} - {temp} used (`{data[key]}`) times '
+                             f'| `{percentage}%` of {typeStr} used in #{channel_name}')
 
     return finalList
 
@@ -160,11 +160,11 @@ def processListRct(client, record, emojiSum):
             if currEmoji is not None:
                 name = currEmoji.name
             finalList.append(
-                f'{spacing}{currEmoji} - {name} used ({data[key]}) times | {percentage}% of all reacts.')
+                f'{spacing}{currEmoji} - {name} used (`{data[key]}`) times | `{percentage}%`')
 
         else:
             temp = getEmojiName(key)  # TODO: Some reacts won't have a name so 'EMOJI' is by default
-            finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times | {percentage}% of all reacts.')
+            finalList.append(f'{spacing}{key} - {temp} used (`{data[key]}`) times | `{percentage}%`')
 
     return finalList
 
@@ -207,16 +207,19 @@ def processChName(client, ctx, ch, option):
     valid_channel = True
     valid_option = True
     channel_name = ch
+    ch_id = ''
 
     # If no channel name specified, use current channel. If invalid channel name, exit
     if ch == '':
-        channel_name = ctx.channel.name
+        channel_name = str(ctx.channel.name)
+        ch_id = str(ctx.channel.id)
     else:
         found = False
         for channel in ctx.guild.text_channels:
             if channel.name == ch:
                 found = True
                 channel_name = ch
+                ch_id = channel.id
                 break
         if not found:
             valid_channel = False
@@ -231,7 +234,7 @@ def processChName(client, ctx, ch, option):
     else:
         typeStr = 'emojis'
 
-    return channel_name, typeStr, valid_channel, valid_option
+    return channel_name, ch_id, typeStr, valid_channel, valid_option
 
 
 def fullChStatsResult(reactData, emojiData):

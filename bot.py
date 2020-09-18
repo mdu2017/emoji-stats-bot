@@ -76,6 +76,11 @@ async def on_ready():
                 CONSTRAINT fk_user_guild FOREIGN KEY(userid, guildid) REFERENCES users(userid, guildid),
                 CONSTRAINT fk_channel FOREIGN KEY(chid) REFERENCES channel(chid)
             )""")
+
+            # Index emoji date for deleting old entries
+            cursor.execute("""CREATE INDEX emojidate_ndx ON emojis(emojidate)""")
+            conn.commit()
+
             print(f'Tables created successfully')
             conn.commit()
         except Exception as e:

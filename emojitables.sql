@@ -18,7 +18,9 @@ CREATE TABLE IF NOT EXISTS channel(
 	chid VARCHAR(30) NOT NULL UNIQUE,
 	chname VARCHAR(30) NOT NULL,
 	guildid VARCHAR(30) NOT NULL,
- 	CONSTRAINT pk_channel PRIMARY KEY(chid, guildid),
+	emoji TEXT NOT NULL,
+	cnt INT NOT NULL,
+ 	CONSTRAINT pk_channel PRIMARY KEY(chid, guildid, emoji),
 	CONSTRAINT fk_channel FOREIGN KEY(guildid) REFERENCES guild(guildid)
 );
 
@@ -34,6 +36,17 @@ CREATE TABLE IF NOT EXISTS emojis(
 	CONSTRAINT fk_user_guild FOREIGN KEY(userid, guildid) REFERENCES users(userid, guildid),
 	CONSTRAINT fk_channel FOREIGN KEY(chid) REFERENCES channel(chid)
 );
+
+-- Create timetable for general stats TODO: (get total number of emojis used within time period)
+-- CREATE TABLE times(
+--     emoji TEXT NOT NULL,
+--     emojitype VARCHAR(10) NOT NULL,
+--     guildid VARCHAR(30) NOT NULL,
+--     emojidate timestamp WITH TIME ZONE,
+-- )
+
+-- Need to create index on timedate so it runs faster
+CREATE INDEX emojidate_ndx ON emojis(emojidate);
 
 
 -- Insert queries
@@ -71,3 +84,9 @@ WHERE emojis.emojitype = 'react' AND emojis.guildid = '77'
 GROUP BY emoji
 ORDER BY SUM(cnt) DESC
 LIMIT 5;
+
+-- Get emojis used within certain time period
+select * from emojis WHERE emojis.emojidate < '2020-08-27 12:20:36.048955';
+
+-- Delete emojis unused for 3 weeks
+DELETE FROM emojis where emojidate < (NOW() - INTERVAL '21 days');

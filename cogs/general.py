@@ -11,8 +11,11 @@ class General(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        self.change_status.start()  # Changes status periodically
+        # self.change_status.start()  # Changes status periodically
         print('General Cog Ready')
+
+        activity = discord.Activity(type=discord.ActivityType.watching, name='!e help')
+        await self.client.change_presence(activity=activity)
 
     @commands.Cog.listener()
     async def on_member_join(self, member):  # method expected by client. This runs once when connected
@@ -23,10 +26,10 @@ class General(commands.Cog):
         print(f'{member} has left the server')
 
     # Change bot status every hour
-    @tasks.loop(seconds=3600)
-    async def change_status(self):
-        activity = discord.Activity(type=discord.ActivityType.watching, name='!e help')
-        await self.client.change_presence(activity=activity)
+    # @tasks.loop(seconds=3600)
+    # async def change_status(self):
+    #     activity = discord.Activity(type=discord.ActivityType.watching, name='!e help')
+    #     await self.client.change_presence(activity=activity)
 
     # TODO: delete unused emoji data after 3 weeks (clear stuff every 3 days)
     # Change bot status every hour
@@ -188,19 +191,30 @@ class General(commands.Cog):
         conn, cursor = getConnection()
 
         today = datetime.datetime.today()
-        print(f'today {today}')
-        week3ago = today - datetime.timedelta(weeks=3)
-        print(f'3 weeks ago {week3ago}')
-
-        # TODO: query for emoji timestamp
+        three_weeks_ago = today - datetime.timedelta(weeks=3)
+        really_old = today - datetime.timedelta(weeks=4)
 
         # cursor.execute("""
         #     INSERT INTO emojis(emoji, emojitype, userid, guildid, cnt, emojidate, chid)
         #     VALUES(%s, %s, %s, %s, %s, %s, %s)
         #     ON CONFLICT(emoji, emojitype, userid, guildid)
         #     DO UPDATE SET cnt = emojis.cnt + 1, emojidate = %s
-        # """, ('BADDATA', 'react', '353037475016474637', guild_id, 1, week3ago, '739569231112437935', week3ago))
+        # """, ('BADDATA', 'react', '353037475016474637', '689284514886844446', 1, really_old, '739569231112437935', really_old))
+        #
+        # cursor.execute("""
+        #             INSERT INTO emojis(emoji, emojitype, userid, guildid, cnt, emojidate, chid)
+        #             VALUES(%s, %s, %s, %s, %s, %s, %s)
+        #             ON CONFLICT(emoji, emojitype, userid, guildid)
+        #             DO UPDATE SET cnt = emojis.cnt + 1, emojidate = %s
+        #         """, (
+        # 'bad2', 'react', '353037475016474637', '689284514886844446', 1, really_old, '739569231112437935', really_old))
         # conn.commit()
+
+        # cursor.execute("""DELETE FROM emojis where emojidate < (NOW() - INTERVAL '21 days')""")
+        # conn.commit()
+        # record = cursor.fetchall()
+        #
+        # print(f'Record of old entries: {record}')
 
 
         cursor.close()  # Close cursor

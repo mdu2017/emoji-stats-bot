@@ -26,15 +26,15 @@ class Message(commands.Cog):
         if message.author == self.client.user:
             return
 
-        # ctx = await self.client.get_context(message)
-        guild_id = message.guild.id
-        channel_name = message.channel.name  # TODO: Add channel info to queries
         msg = message.content
+
+        ch_id = str(message.channel.id)
+        user_id = str(message.author.id)
+        guild_id = str(message.guild.id)
+        curr_time = datetime.datetime.now()
 
         # Get db connection and check
         conn, cursor = getConnection()
-
-        userid = str(message.author.id)  # Store as string in DB
 
         # FIND ALL CUSTOM EMOJIS
         custom_emojis = re.findall(r'<:\w*:\d*>', msg)
@@ -49,83 +49,23 @@ class Message(commands.Cog):
         # Query custom emojis into database if not empty
         if len(custom_emojis) > 0:
             for item in custom_emojis:
-                # Check if data exists
                 cursor.execute("""
-                    SELECT userid, reactid FROM users
-                    WHERE userid = %s AND reactid = %s 
-                    AND emojitype = 'message' AND guildid = %s""", (userid, item, guild_id))
-                existingData = cursor.fetchall()
-
-                # Handle user data and commit
-                if len(existingData) == 0:
-                    # print('Successfully adding custom emoji in msg')
-                    cursor.execute("""
-                        INSERT INTO users(userid, reactid, cnt, emojitype, guildid)
-                        VALUES (%s, %s, 1, 'message', %s)""", (userid, item, guild_id))
-                else:
-                    # print(f'Custom emoji exists, updating entry')
-                    cursor.execute("""
-                        UPDATE users SET cnt = cnt + 1
-                        WHERE emojitype = 'message' AND userid = %s 
-                        AND reactid = %s AND guildid = %s""", (userid, item, guild_id))
-                conn.commit()
-
-                # Handle channel data and commit
-                cursor.execute("""
-                        SELECT chname, reactid FROM channel
-                        WHERE chname = %s AND reactid = %s 
-                        AND emojitype = 'message' AND guildid = %s""", (channel_name, item, guild_id))
-                chData = cursor.fetchall()
-                if len(chData) == 0:
-                    cursor.execute("""
-                        INSERT INTO channel(chname, reactid, cnt, emojitype, guildid)
-                        VALUES (%s, %s, 1, 'message', %s)""", (channel_name, item, guild_id))
-                else:
-                    cursor.execute("""
-                        UPDATE channel SET cnt = cnt + 1
-                        WHERE emojitype = 'message' AND chname = %s 
-                        AND reactid = %s AND guildid = %s""", (channel_name, item, guild_id))
+                    INSERT INTO emojis(emoji, emojitype, userid, guildid, cnt, emojidate, chid)
+                    VALUES(%s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT(emoji, emojitype, userid, guildid)
+                    DO UPDATE SET cnt = emojis.cnt + 1, emojidate = %s
+                """, (item, 'message', str(user_id), str(guild_id), 1, curr_time, ch_id, curr_time))
                 conn.commit()
 
         # Query unicode emojis into users db
         if len(unimojis) > 0:
             for item in unimojis:
-
-                # Handle user data
                 cursor.execute("""
-                        SELECT userid, reactid FROM users
-                        WHERE userid = %s AND reactid = %s 
-                        AND emojitype = 'message' AND guildid = %s""", (userid, item, guild_id))
-                existingData = cursor.fetchall()
-                if len(existingData) == 0:
-                    # print('Successfully adding unicode emoji in msg')
-                    cursor.execute("""
-                        INSERT INTO users(userid, reactid, cnt, emojitype, guildid)
-                        VALUES (%s, %s, 1, 'message', %s)""", (userid, item, guild_id))
-                else:
-                    # print('Unicode emoji exists, updating entry')
-                    cursor.execute("""
-                        UPDATE users SET cnt = cnt + 1
-                        WHERE emojitype = 'message' AND userid = %s 
-                        AND reactid = %s AND guildid = %s""", (userid, item, guild_id))
-                conn.commit()
-
-                # Handle channel data
-                cursor.execute("""
-                        SELECT chname, reactid FROM channel
-                        WHERE chname = %s AND reactid = %s 
-                        AND emojitype = 'message' AND guildid = %s""", (channel_name, item, guild_id))
-                chData = cursor.fetchall()
-
-                if len(chData) == 0:
-                    cursor.execute("""
-                        INSERT INTO channel(chname, reactid, cnt, emojitype, guildid)
-                        VALUES (%s, %s, 1, 'message', %s)""", (channel_name, item, guild_id))
-                else:
-                    cursor.execute("""
-                        UPDATE channel SET cnt = cnt + 1
-                        WHERE emojitype = 'message' AND chname = %s 
-                        AND reactid = %s AND guildid = %s""", (channel_name, item, guild_id))
+                    INSERT INTO emojis(emoji, emojitype, userid, guildid, cnt, emojidate, chid)
+                    VALUES(%s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT(emoji, emojitype, userid, guildid)
+                    DO UPDATE SET cnt = emojis.cnt + 1, emojidate = %s
+                """, (item, 'message', str(user_id), str(guild_id), 1, curr_time, ch_id, curr_time))
                 conn.commit()
 
         cursor.close()  # Close cursor
@@ -135,7 +75,7 @@ class Message(commands.Cog):
     @commands.command(brief='Display overall stats for emojis used in messages')
     async def topemojis(self, ctx, amt=5):
         # Handle invalid amount
-        if amt < 1 or amt > 15:
+        if amt < 1 or amt > 20:
             await ctx.send(f'Error: enter an amount between 1-20')
             return
 
@@ -144,21 +84,12 @@ class Message(commands.Cog):
         guild_id = ctx.guild.id
 
         # Grabs top 5 most used reacts in messages
-        cursor.execute("""
-            SELECT reactid, SUM(cnt) FROM users
-            WHERE users.emojitype = 'message' AND guildid = %s
-            GROUP BY reactid
-            ORDER BY SUM(cnt) DESC
-            LIMIT %s""", (guild_id, amt))
-        record = cursor.fetchall()
+        record, emojiSum = get_top_emojis(cursor, guild_id, amt)
 
         # Check empty query
-        if len(record) == 0:
+        if record is None:
             await ctx.send('No emoji data found')
             return
-
-        # Fetch total emojis used
-        emojiSum = getEmojiSumMsg(cursor, guild_id)
 
         # Process final list for displaying
         finalList = processListMsg(self.client, record, emojiSum)
@@ -194,7 +125,6 @@ class Message(commands.Cog):
         mode = 'normal'
         if lastNdx != -1:
             lastWord = usr_name[lastNdx + 1:]
-            print(f'Last word: {lastWord}')
             if lastWord == 'unicode' or lastWord == 'UNICODE':
                 mode = 'unicode'
                 usr_name = usr_name[:lastNdx]
@@ -203,6 +133,7 @@ class Message(commands.Cog):
                 usr_name = usr_name[:lastNdx]
 
         user, username, userID, valid = processName(self.client, ctx, usr_name)
+        guild_id = str(ctx.guild.id)
 
         msg_author = ''
         async for message in ctx.channel.history(limit=1):
@@ -215,16 +146,14 @@ class Message(commands.Cog):
 
         # Get db connection and check
         conn, cursor = getConnection()
-        guild_id = ctx.guild.id
 
-        record = getUserEmojis(cursor, guild_id, mode, userID)
+        record, emojiSum = get_user_emojis(cursor, guild_id, mode, userID)
 
-        if len(record) == 0:
+        if record is None:
             await ctx.send('No emoji data found')
             return
 
         # Fetch total emojis used
-        emojiSum = getEmojiSumUsrMsg(cursor, guild_id, userID)
         finalList = processListMsg(self.client, record, emojiSum)
 
         # Close db stuff
@@ -236,41 +165,13 @@ class Message(commands.Cog):
             await ctx.send(f'{username}\' has no emoji data')
             return
 
-        # If only 1 page, then get the result and display
-        page_content = []  # the final list of results for each page
-        if len(finalList) <= 5:
-            page_content.append(getResult(finalList))
-            em = discord.Embed(colour=discord.Colour.blurple(), title=f'Full statistics for all emojis used', )
+        page_content, final_pages = gen_embed_pages_emoji(finalList, username)
+
+        if len(final_pages) == 1:
+            em = discord.Embed(colour=discord.Colour.blurple(), title=f'Emoji stats for {username}', )
             em.add_field(name='Emojis used in server', value=f'{page_content[0]}', inline=False)
             await ctx.send(embed=em)
             return
-
-        # TODO: multiple page embeds
-        index = 0  # index keeps track of current item's index
-
-        # Aggregate results into 5 results per page
-        while index < len(finalList):
-            # For the last page, get remaining results
-            if index > len(finalList) - 5:
-                res = getResult(finalList[index:len(finalList)], index + 1)
-                page_content.append(res)
-                index += 5
-            else:
-                res = getResult(finalList[index:index + 5], index + 1)
-                page_content.append(res)
-                index += 5
-
-        # Add embeds into final pages
-        final_pages = []
-        for i in range(len(page_content)):
-            embed = discord.Embed(colour=discord.Colour.blurple(), title=f'Page {i + 1}/{len(page_content)}',
-                                  description=page_content[i], )
-            if i == 0:
-                embed.title = f'Page {i + 1}/{len(page_content)}\n' \
-                              f'{username}\'s {len(finalList)} most used emojis in the server'
-
-            embed.set_thumbnail(url=emoji_image_url)
-            final_pages.append(embed)
 
         curr_page = 0
 
@@ -344,19 +245,12 @@ class Message(commands.Cog):
         conn, cursor = getConnection()
 
         # Get the data
-        cursor.execute("""
-                    SELECT reactid, cnt FROM users
-                    WHERE userid = %s AND users.emojitype = 'message' AND guildid = %s
-                    ORDER BY cnt DESC LIMIT 1;""", (str(userID), guild_id))
-        record = cursor.fetchall()
+        record, emojiSum = get_fav_emoji(cursor, guild_id, userID)
 
         # Check for empty records
         if len(record) == 0:
             await ctx.send('No emoji data found')
             return
-
-        # Fetch single sum value
-        emojiSum = getEmojiSumUsrMsg(cursor, guild_id, userID)
 
         # Convert records into list for display
         finalList = processListMsg(self.client, record, emojiSum)
@@ -378,7 +272,7 @@ class Message(commands.Cog):
 
     @commands.command(brief='Stat for every emoji used in messages')
     async def fullmsgstats(self, ctx, mode='normal'):
-        guild_id = ctx.guild.id
+        guild_id = str(ctx.guild.id)
         msg_author = ''
         async for message in ctx.channel.history(limit=1):
             msg_author = message.author
@@ -393,14 +287,12 @@ class Message(commands.Cog):
         # Get db connection and check
         conn, cursor = getConnection()
 
-        record = getFullMsgStats(cursor, guild_id, mode)
-
+        record, emojiSum = get_full_emoji_stats(cursor, guild_id, mode)
         if len(record) == 0:
             await ctx.send('No emoji data found')
             return
 
         # Get sum and final list
-        emojiSum = getEmojiSumMsg(cursor, guild_id)
         finalList = processListMsg(self.client, record, emojiSum)
 
         # If no reaction data from query, return empty
@@ -413,10 +305,9 @@ class Message(commands.Cog):
         ps_pool.putconn(conn)
 
         # If only 1 page, then get the result and display
-        page_content = []  # the final list of results for each page
-        if len(finalList) <= 5:
-            page_content.append(getResult(finalList))
-            em = discord.Embed(colour=discord.Colour.blurple(), title=f'Full statistics for all emojis used',)
+        page_content, final_pages = gen_embed_pages_emoji(finalList, user_name=ctx.guild.name)
+        if len(final_pages) == 1:
+            em = discord.Embed(colour=discord.Colour.blurple(), title=f'Full statistics for {ctx.guild.name} server',)
             em.add_field(name='Emojis used in server', value=f'{page_content[0]}', inline=False)
             await ctx.send(embed=em)
             return
@@ -501,63 +392,137 @@ class Message(commands.Cog):
 
     # TODO: Timestamps
     # TODO: Gets X most recent, (options are day, week, month)
-    async def recent(self, ctx, num='3', option='week'):
+    async def recentemojis(self, ctx, num='3', option='week'):
         print()
 
-        # Get current time,
+    # TODO:
+    async def emojistoday(self, ctx):
+        print()
 
 
 
 def setup(client):
     client.add_cog(Message(client))
 
+def gen_embed_pages_emoji(finalList, user_name):
+    page_content = []
 
-def getUserEmojis(cursor, guild_id, mode, userID):
+    # TODO: multiple page embeds
+    index = 0  # index keeps track of current item's index
+
+    # Aggregate results into 5 results per page
+    while index < len(finalList):
+        # For the last page, get remaining results
+        if index > len(finalList) - 5:
+            res = getResult(finalList[index:len(finalList)], index + 1)
+            page_content.append(res)
+            index += 5
+        else:
+            res = getResult(finalList[index:index + 5], index + 1)
+            page_content.append(res)
+            index += 5
+
+    # Add embeds into final pages
+    final_pages = []
+    for i in range(len(page_content)):
+        embed = discord.Embed(colour=discord.Colour.blurple(), title=f'Page {i + 1}/{len(page_content)}',
+                              description=page_content[i], )
+        if i == 0:
+            embed.title = f'Page {i + 1}/{len(page_content)}\n' \
+                          f'{user_name}\'s {len(finalList)} most used emojis'
+
+        embed.set_thumbnail(url=emoji_image_url)
+        final_pages.append(embed)
+
+    return page_content, final_pages
+
+
+def get_top_emojis(cursor, guild_id, amt):
+    cursor.execute("""
+        SELECT emoji, SUM(cnt) FROM emojis
+        WHERE emojis.emojitype = 'message' AND emojis.guildid = %s
+        GROUP BY emoji ORDER BY SUM(cnt) DESC
+        LIMIT (%s)""", (str(guild_id), amt))
+    record = cursor.fetchall()
+
+    if len(record) == 0:
+        return None, None
+
+    emojiSum = get_emoji_sum(cursor, guild_id)
+
+    return record, emojiSum
+
+def get_user_emojis(cursor, guild_id, mode, userID):
     if mode == 'unicode':
         cursor.execute("""
-        SELECT reactid, cnt FROM users
-        WHERE userid = %s AND users.emojitype = 'message' AND guildid = %s AND reactid NOT LIKE '<%%'
-        ORDER BY cnt DESC;""", (str(userID), guild_id))
+        SELECT emoji, SUM(cnt) FROM emojis
+        WHERE emojis.emojitype = 'message' AND guildid = %s AND userid = %s AND emoji NOT LIKE '<%%'
+        GROUP BY emoji ORDER BY SUM(cnt) DESC
+        """, (str(guild_id), str(userID)))
     elif mode == 'custom':
         cursor.execute("""
-        SELECT reactid, cnt FROM users
-        WHERE userid = %s AND users.emojitype = 'message' AND guildid = %s AND reactid LIKE '<%%'
-        ORDER BY cnt DESC;""", (str(userID), guild_id))
+        SELECT emoji, SUM(cnt) FROM emojis
+        WHERE emojis.emojitype = 'message' AND guildid = %s AND userid = %s AND emoji LIKE '<%%'
+        GROUP BY emoji ORDER BY SUM(cnt) DESC
+        """, (str(guild_id), str(userID)))
     else:
         cursor.execute("""
-        SELECT reactid, cnt FROM users
-        WHERE userid = %s AND users.emojitype = 'message' AND guildid = %s
-        ORDER BY cnt DESC;""", (str(userID), guild_id))
+        SELECT emoji, SUM(cnt) FROM emojis
+        WHERE emojis.emojitype = 'message' AND guildid = %s AND userid = %s
+        GROUP BY emoji ORDER BY SUM(cnt) DESC
+        """, (str(guild_id), str(userID)))
 
     record = cursor.fetchall()
-    return record
 
-def getFullMsgStats(cursor, guild_id, mode):
+    if len(record) == 0:
+        return None, None
+
+    emojiSum = get_emoji_sum_usr(cursor, guild_id, userID)
+    print(f'Emoji sum: {emojiSum}')
+
+    return record, emojiSum
+
+def get_fav_emoji(cursor, guild_id, user_id):
+    cursor.execute("""
+    SELECT emoji, SUM(cnt) FROM emojis
+    WHERE emojis.emojitype = 'message' AND guildid = %s AND userid = %s
+    GROUP BY emoji ORDER BY SUM(cnt) DESC LIMIT 1
+    """, (str(guild_id), str(user_id)))
+
+    record = cursor.fetchall()
+    if len(record) == 0:
+        return None, None
+    emojiSum = get_emoji_sum_usr(cursor, guild_id, user_id)
+
+    return record, emojiSum
+
+def get_full_emoji_stats(cursor, guild_id, mode):
     if mode == 'unicode':
         cursor.execute("""
-        SELECT reactid, SUM(cnt)
-        FROM users WHERE users.emojitype = 'message' AND guildid = %s AND reactid NOT LIKE '<%%'
-        GROUP BY reactid
-        ORDER BY SUM(cnt) DESC""", (guild_id,))
+        SELECT emoji, SUM(cnt) FROM emojis
+        WHERE emojis.emojitype = 'message' AND emojis.guildid = %s AND emoji NOT LIKE '<%%'
+        GROUP BY emoji ORDER BY SUM(cnt) DESC """, (str(guild_id),))
     elif mode == 'custom':
         cursor.execute("""
-        SELECT reactid, SUM(cnt)
-        FROM users WHERE users.emojitype = 'message' AND guildid = %s AND reactid LIKE '<%%'
-        GROUP BY reactid
-        ORDER BY SUM(cnt) DESC""", (guild_id,))
+        SELECT emoji, SUM(cnt) FROM emojis
+        WHERE emojis.emojitype = 'message' AND emojis.guildid = %s AND emoji LIKE '<%%'
+        GROUP BY emoji ORDER BY SUM(cnt) DESC """, (str(guild_id),))
     else:
         cursor.execute("""
-        SELECT reactid, SUM(cnt)
-        FROM users WHERE users.emojitype = 'message' AND guildid = %s
-        GROUP BY reactid
-        ORDER BY SUM(cnt) DESC""", (guild_id,))
+        SELECT emoji, SUM(cnt) FROM emojis
+        WHERE emojis.emojitype = 'message' AND emojis.guildid = %s
+        GROUP BY emoji ORDER BY SUM(cnt) DESC """, (str(guild_id),))
 
     record = cursor.fetchall()
-    return record
+    if len(record) == 0:
+        return None, None
+    emojiSum = get_emoji_sum(cursor, guild_id)
+
+    return record, emojiSum
 
 # Gets sum of total emojis used in messages
-def getEmojiSumMsg(cursor, guild_id):
-    cursor.execute("""SELECT SUM(cnt) FROM users WHERE emojitype = 'message' AND guildid = %s""", (guild_id,))
+def get_emoji_sum(cursor, guild_id):
+    cursor.execute("""SELECT SUM(cnt) FROM emojis WHERE emojitype = 'message' AND guildid = %s""", (str(guild_id),))
     emojiSum = cursor.fetchone()
     emojiSum = int(emojiSum[0])
 
@@ -565,24 +530,10 @@ def getEmojiSumMsg(cursor, guild_id):
 
 
 # Get sum of total emojis used in user emoji commands
-def getEmojiSumUsrMsg(cursor, guild_id, userID):
+def get_emoji_sum_usr(cursor, guild_id, userID):
     cursor.execute("""
-                SELECT SUM(cnt) FROM users WHERE userid = %s 
-                AND emojitype = 'message' AND guildid = %s""", (str(userID), guild_id))
+                SELECT SUM(cnt) FROM emojis WHERE userid = %s 
+                AND emojitype = 'message' AND guildid = %s""", (str(userID), str(guild_id)))
     emojiSum = cursor.fetchone()
     emojiSum = int(emojiSum[0])
     return emojiSum
-
-# Split list into pages for results
-# def splitList(finalList, num):
-#     iter_list = iter(finalList)
-#     pages = list(islice(iter_list, 0, None, num))  # Split list into sublists of size N (currently 5)
-#     final_pages = []
-#
-#     # Join results into 1 message for each page
-#     cnt = 1
-#     for page_content in pages:
-#         final_pages.append(getResult(page_content, cnt))
-#         cnt += 5
-#
-#     return final_pages

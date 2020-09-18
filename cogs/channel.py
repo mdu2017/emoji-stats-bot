@@ -16,7 +16,7 @@ class Channel(commands.Cog):
                             (.channelstats OR.channelstats <channel_name> <option=message,react>)''')
     async def chstats(self, ctx, ch='', option='message'):
 
-        channel_name, typeStr, valid_channel, valid_option = processChName(self.client, ctx, ch, option)
+        channel_name, ch_id, typeStr, valid_channel, valid_option = processChName(self.client, ctx, ch, option)
 
         if not valid_channel:
             err_embed = discord.Embed(colour=discord.Colour.dark_orange(),
@@ -31,13 +31,12 @@ class Channel(commands.Cog):
 
         # Get db connection and check
         conn, cursor = getConnection()
-        guild_id = ctx.guild.id
+        guild_id = str(ctx.guild.id)
 
         # Grab top 3 most used emojis in a channel
         cursor.execute("""
-            SELECT reactid, cnt FROM channel
-            WHERE channel.chname = %s AND emojitype = %s AND guildid = %s
-            ORDER BY cnt DESC LIMIT 3""", (channel_name, option, guild_id))
+            SELECT emoji, cnt FROM emojis WHERE emojis.chid = %s AND emojitype = %s AND guildid = %s
+            ORDER BY cnt DESC LIMIT 3""", (str(ch_id), option, str(guild_id)))
         record = cursor.fetchall()
 
         # Check for empty data
@@ -48,7 +47,7 @@ class Channel(commands.Cog):
             return
 
         # Grab total count of used emojis
-        emojiSum = getEmojiSumChn(cursor, channel_name, option, guild_id)
+        emojiSum = getEmojiSumChn(cursor, ch_id, option, guild_id)
 
         finalList = processListChn(self.client, record, emojiSum, typeStr, channel_name)
         result = getResult(finalList)
@@ -111,11 +110,11 @@ class Channel(commands.Cog):
 def setup(client):
     client.add_cog(Channel(client))
 
-def getEmojiSumChn(cursor, channel_name, option, guild_id):
+def getEmojiSumChn(cursor, ch_id, option, guild_id):
     cursor.execute("""
-                SELECT SUM(cnt) FROM channel 
-                WHERE channel.chname = %s AND emojitype = %s
-                AND guildid = %s""", (channel_name, option, guild_id))
+                SELECT SUM(cnt) FROM emojis 
+                WHERE emojis.chid = %s AND emojitype = %s
+                AND guildid = %s""", (str(ch_id), option, guild_id))
     emojiSum = cursor.fetchone()
     emojiSum = int(emojiSum[0])
     return emojiSum
