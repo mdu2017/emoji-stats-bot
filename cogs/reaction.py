@@ -34,8 +34,6 @@ class Reaction(commands.Cog):
         guild_id = str(reaction.message.guild.id)
         curr_time = datetime.datetime.now()
 
-        print(f'Cahnel id: {ch_id}')
-
         # Get db connection and check
         conn, cursor = getConnection()
 
@@ -347,7 +345,27 @@ class Reaction(commands.Cog):
     # TODO:
     @commands.command(brief='Get most used reaction today')
     async def reactstoday(self, ctx):
-        print()
+        conn, cursor = getConnection()
+
+        today = datetime.datetime.now()
+        last_24hr = today - datetime.timedelta(days=1)
+
+        guild_id = str(ctx.guild.id)
+
+        cursor.execute("""SELECT emoji, cnt FROM emojis 
+            WHERE emojidate > (NOW() - INTERVAL '1 day') AND guildid = %s""", (str(guild_id), ))
+        record = cursor.fetchall()
+        cursor.close()
+        ps_pool.putconn(conn)
+
+        finalList = getResult(processRecent(self.client, record))
+
+        # Display results
+        embed = discord.Embed(colour=discord.Colour.blurple())
+        embed.set_thumbnail(url=emoji_image_url)
+        embed.add_field(name=f'Reactions used within the past day', value=f'{finalList}', inline=False)
+        await ctx.send(embed=embed)
+
 
     # TODO:
     @commands.command(brief='Get top 5 most recently used reactions')

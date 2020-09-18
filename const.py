@@ -22,24 +22,24 @@ port = credList[3]
 db = credList[4]
 
 # Setup db connection at start
-# ps_pool = psycopg2.pool.SimpleConnectionPool(
-#     1, 20,
-#     user=usr,
-#     password=pwd,
-#     host=host,
-#     port=port,
-#     database=db
-# )
-
-# TODO: Test database
 ps_pool = psycopg2.pool.SimpleConnectionPool(
     1, 20,
-    user='postgres',
-    password='Hdqtpm06',
-    host='127.0.0.1',
-    port='5432',
-    database='emojiv2'
+    user=usr,
+    password=pwd,
+    host=host,
+    port=port,
+    database=db
 )
+
+# TODO: Test database
+# ps_pool = psycopg2.pool.SimpleConnectionPool(
+#     1, 20,
+#     user='postgres',
+#     password='Hdqtpm06',
+#     host='127.0.0.1',
+#     port='5432',
+#     database='emojiv2'
+# )
 
 if ps_pool:
     print('Connection successful')
@@ -235,6 +235,36 @@ def processChName(client, ctx, ch, option):
         typeStr = 'emojis'
 
     return channel_name, ch_id, typeStr, valid_channel, valid_option
+
+def processRecent(client, record):
+    data = dict(record)  # convert record to dictionary
+    finalList = []
+
+    # Convert emoji into discord representation
+    for key in data:
+        keystr = str(key)
+        spacing = ''
+        if len(finalList) == 0:  # Spacing for first item
+            spacing = ' '
+        else:
+            spacing = ''
+
+        if '<' in keystr:  # If it's a custom emoji, parse ID
+            startIndex = keystr.rindex(':') + 1
+            endIndex = keystr.index('>')
+            id = int(key[startIndex:endIndex])
+            name = 'EMOJI'
+            currEmoji = client.get_emoji(id)
+            if currEmoji is not None:
+                name = currEmoji.name
+            finalList.append(
+                f'{spacing}{currEmoji} - `{name}`')
+
+        else:
+            temp = getEmojiName(key)  # TODO: Some reacts won't have a name so 'EMOJI' is by default
+            finalList.append(f'{spacing}{key} - `{temp}`')
+
+    return finalList
 
 
 def fullChStatsResult(reactData, emojiData):
