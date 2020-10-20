@@ -69,10 +69,15 @@ class General(commands.Cog):
         em.add_field(name='reactstoday', value='Show all reactions used in the past day', inline=True)
 
         # Channel commands
-        em.add_field(name='.chstats <channel_name>',
+        em.add_field(name='chstats <channel_name>',
                      value='Shows a channel\'s top 3 most popular reactions and emojis', inline=True)
         em.add_field(name='fullchstats (*under work*)',
                      value='Shows the most popular reaction/emoji for every channel', inline=True)
+
+        # Notes
+        em.add_field(name='<mode> - optional argument (use "unicode" or "custom" to filer type)', value='-', inline=False)
+        em.add_field(name='<username> - Can use discord nickname or mention user', value='-', inline=False)
+        em.add_field(name='<channel_name> - Discord text channel name (no # needed)', value='-', inline=False)
 
         await author.send(embed=em)
 
