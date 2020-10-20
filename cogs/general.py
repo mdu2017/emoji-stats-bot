@@ -11,7 +11,6 @@ class General(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        # self.change_status.start()  # Changes status periodically
         print('General Cog Ready')
 
         activity = discord.Activity(type=discord.ActivityType.watching, name='!e help')
@@ -27,18 +26,11 @@ class General(commands.Cog):
         server_name = member.guild.name
         print(f'{member} has left the server {server_name}')
 
-    # TODO: delete unused emoji data after 3 weeks (clear stuff every 3 days)
-    # Change bot status every hour
-    # @tasks.loop(hours=72)
-    # async def change_status(self):
-    #     activity = discord.Activity(type=discord.ActivityType.watching, name='!e help')
-    #     await self.client.change_presence(activity=activity)
-
     @commands.command()
     async def getservers(self, ctx):
         guilds = list(self.client.guilds)
         print(f"Connected on {str(len(guilds))} servers:")
-        print('\n'.join(guild.name for guild in guilds))
+        # print('\n'.join(guild.name for guild in guilds))
 
     # Overrides inherited cog_check method (Check before executing any commands)
     async def cog_check(self, ctx):

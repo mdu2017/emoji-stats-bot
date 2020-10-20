@@ -22,8 +22,6 @@ class Message(commands.Cog):
     @commands.Cog.listener()  # Cog on_message automatically runs comands once
     async def on_message(self, message):
 
-        print(f'guild: {message.author.guild.name}')
-
         # Make sure bot doesn't respond its own message
         if message.author == self.client.user:
             return
