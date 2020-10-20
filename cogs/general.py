@@ -55,36 +55,24 @@ class General(commands.Cog):
         em.set_author(name='Bot prefix is !e  (Example command: !e topemojis)')
 
         # Message commands
-        em.add_field(name='useremojis <user>',
-                     value='''Displays user\'s top 5 emojis 
-                     <user> can be nickname or mention''', inline=False)
-        em.add_field(name='topemojis <num>',
-                     value='''Display <num> most used emojis in the server 
-                     <num> = number between 1-15''', inline=False)
-        em.add_field(name='favemoji <@username>',
-                     value='Display user\'s favorite emoji in the server', inline=False)
-        em.add_field(name='fullmsgstats', value='Display stats for all emojis used in the server', inline=False)
-        em.add_field(name='emojistoday', value='Display all emojis used in the last 24 hours', inline=False)
+        em.add_field(name='topemojis', value='Shows the 5 most popular emojis', inline=True)
+        em.add_field(name='useremojis <username> <mode>', value='Shows user\'s most used emojis', inline=True)
+        em.add_field(name='favemoji <username>', value='Shows a user\'s favorite emoji', inline=True)
+        em.add_field(name='fullmsgstats', value='Shows stats for all emojis used in messages', inline=True)
+        em.add_field(name='emojistoday', value='Shows all emojis used in the past day', inline=True)
 
         # Reaction commands
-        em.add_field(name='userreacts <user>', value='''Displays user\'s top 5 reactions
-                                                    <user> can be nickname or mention''', inline=False)
-        em.add_field(name='topreacts <num> <mode>', value='''Display <num> most used reactions in the server
-                                                   <num> - number between 1-15
-                                                   <mode> - "custom" or "unicode" -- mode is an optional argument''', inline=False)
-        em.add_field(name='favreact <@username>',
-                     value='''Display user\'s favorite reaction in the server 
-                     <@username> - can use mention or nickname''', inline=False)
-        em.add_field(name='fullreactstats', value='Display stats for all reactions used in the server', inline=False)
-        em.add_field(name='reactstoday', value='Display all reactions used in the last 24 hours', inline=False)
+        em.add_field(name='topreacts', value='Shows the 5 most popular reactions', inline=True)
+        em.add_field(name='userreacts <username> <mode>', value='Shows a user\'s most used reactions', inline=True)
+        em.add_field(name='favreact <@username>', value='Shows a user\'s favorite reaction', inline=True)
+        em.add_field(name='fullreactstats', value='Shows stats for all reactions used', inline=True)
+        em.add_field(name='reactstoday', value='Show all reactions used in the past day', inline=True)
 
         # Channel commands
         em.add_field(name='.chstats <channel_name>',
-                     value='''Display top 3 emojis and reactions for a specified channel. 
-                     <channel_name> - name of the channel (no # needed)''',
-                     inline=False)
-        em.add_field(name='fullchstats (currently under work)', value='Shows the most popular emoji and react for each channel if possible',
-                     inline=False)
+                     value='Shows a channel\'s top 3 most popular reactions and emojis', inline=True)
+        em.add_field(name='fullchstats (*under work*)',
+                     value='Shows the most popular reaction/emoji for every channel', inline=True)
 
         await author.send(embed=em)
 
