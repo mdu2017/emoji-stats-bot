@@ -31,16 +31,6 @@ ps_pool = psycopg2.pool.SimpleConnectionPool(
     database=db
 )
 
-# TODO: Test database
-# ps_pool = psycopg2.pool.SimpleConnectionPool(
-#     1, 20,
-#     user='postgres',
-#     password='Hdqtpm06',
-#     host='127.0.0.1',
-#     port='5432',
-#     database='emojiv2'
-# )
-
 if ps_pool:
     print('Connection successful')
 else:
@@ -103,7 +93,7 @@ def processListMsg(client, record, emojiSum):
     return finalList
 
 
-def processListChn(client, record, emojiSum, typeStr, channel_name):
+def processListChn(client, record, emojiSum, channel_name):
     data = dict(record)
     finalList = []
 
@@ -127,12 +117,12 @@ def processListChn(client, record, emojiSum, typeStr, channel_name):
                 name = currEmoji.name
             finalList.append(
                 f'{spacing}{currEmoji} - {name} used (`{data[key]}`) times '
-                f'| `{percentage}%` of {typeStr} used in #{channel_name}')
+                f'| `{percentage}%`')
 
         else:
             temp = getEmojiName(key)  # TODO: Some reacts won't have a name so 'EMOJI' is by default
             finalList.append(f'{spacing}{key} - {temp} used (`{data[key]}`) times '
-                             f'| `{percentage}%` of {typeStr} used in #{channel_name}')
+                             f'| `{percentage}%`')
 
     return finalList
 
@@ -190,7 +180,8 @@ def processName(client, ctx, user_name):
         for guild in client.guilds:
             for member in guild.members:
                 nickname = member.nick
-                if str(user_name) == str(nickname):
+                mem_name = member.name
+                if str(user_name) == str(mem_name) or str(user_name) == str(nickname):
                     user = member
                     username = member.name
                     userID = member.id
@@ -203,7 +194,7 @@ def processName(client, ctx, user_name):
     return user, username, userID, valid
 
 
-def processChName(client, ctx, ch, option):
+def processChName(client, ctx, ch):
     valid_channel = True
     valid_option = True
     channel_name = ch
@@ -224,17 +215,8 @@ def processChName(client, ctx, ch, option):
         if not found:
             valid_channel = False
 
-    # handle invalid type
-    if option != 'react' and option != 'message':
-        valid_option = False
 
-    # Used in formatted print
-    if option == 'react':
-        typeStr = 'reactions'
-    else:
-        typeStr = 'emojis'
-
-    return channel_name, ch_id, typeStr, valid_channel, valid_option
+    return channel_name, ch_id, valid_channel
 
 def processRecent(client, record):
     data = dict(record)  # convert record to dictionary

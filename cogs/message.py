@@ -22,6 +22,8 @@ class Message(commands.Cog):
     @commands.Cog.listener()  # Cog on_message automatically runs comands once
     async def on_message(self, message):
 
+        print(f'guild: {message.author.guild.name}')
+
         # Make sure bot doesn't respond its own message
         if message.author == self.client.user:
             return
@@ -31,7 +33,7 @@ class Message(commands.Cog):
         ch_id = str(message.channel.id)
         user_id = str(message.author.id)
         guild_id = str(message.guild.id)
-        curr_time = datetime.datetime.now()
+        curr_time = datetime.datetime.now().strftime("%Y-%m-%d")
 
         # Get db connection and check
         conn, cursor = getConnection()
@@ -52,9 +54,9 @@ class Message(commands.Cog):
                 cursor.execute("""
                     INSERT INTO emojis(emoji, emojitype, userid, guildid, cnt, emojidate, chid)
                     VALUES(%s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT(emoji, emojitype, userid, guildid)
-                    DO UPDATE SET cnt = emojis.cnt + 1, emojidate = %s
-                """, (item, 'message', str(user_id), str(guild_id), 1, curr_time, ch_id, curr_time))
+                    ON CONFLICT(emoji, emojitype, userid, guildid, emojidate)
+                    DO UPDATE SET cnt = emojis.cnt + 1
+                """, (item, 'message', str(user_id), str(guild_id), 1, curr_time, ch_id))
                 conn.commit()
 
         # Query unicode emojis into users db
@@ -63,9 +65,9 @@ class Message(commands.Cog):
                 cursor.execute("""
                     INSERT INTO emojis(emoji, emojitype, userid, guildid, cnt, emojidate, chid)
                     VALUES(%s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT(emoji, emojitype, userid, guildid)
-                    DO UPDATE SET cnt = emojis.cnt + 1, emojidate = %s
-                """, (item, 'message', str(user_id), str(guild_id), 1, curr_time, ch_id, curr_time))
+                    ON CONFLICT(emoji, emojitype, userid, guildid, emojidate)
+                    DO UPDATE SET cnt = emojis.cnt + 1
+                """, (item, 'message', str(user_id), str(guild_id), 1, curr_time, ch_id))
                 conn.commit()
 
         cursor.close()  # Close cursor
@@ -85,6 +87,10 @@ class Message(commands.Cog):
 
         # Grabs top 5 most used reacts in messages
         record, emojiSum = get_top_emojis(cursor, guild_id, amt)
+
+        # Close db stuff
+        cursor.close()
+        ps_pool.putconn(conn)
 
         # Check empty query
         if record is None:
@@ -111,10 +117,6 @@ class Message(commands.Cog):
 
         # Display results
         await ctx.send(embed=em)
-
-        # Close db stuff
-        cursor.close()
-        ps_pool.putconn(conn)
 
     @commands.command(brief='Displays most used emojis in messages by user')
     async def useremojis(self, ctx, *args):
@@ -246,6 +248,11 @@ class Message(commands.Cog):
 
         # Get the data
         record, emojiSum = get_fav_emoji(cursor, guild_id, userID)
+
+        # Close db stuff
+        cursor.close()
+        ps_pool.putconn(conn)
+
 
         # Check for empty records
         if len(record) == 0:
@@ -390,15 +397,33 @@ class Message(commands.Cog):
                 print('bad')
                 break
 
-    # TODO: Timestamps
-    # TODO: Gets X most recent, (options are day, week, month)
-    async def recentemojis(self, ctx, num='3', option='week'):
-        print()
-
-    # TODO:
+    # TODO: in progress
+    @commands.command(brief='Get most used emojis today')
     async def emojistoday(self, ctx):
-        print()
+        conn, cursor = getConnection()
 
+        today = datetime.datetime.now()
+        last_24hr = today - datetime.timedelta(days=1)
+
+        guild_id = str(ctx.guild.id)
+
+        cursor.execute("""SELECT emoji, cnt FROM emojis 
+            WHERE emojidate > (NOW() - INTERVAL '1 day') 
+            AND guildid = %s AND emojitype = 'message'""", (str(guild_id),))
+        record = cursor.fetchall()
+        cursor.close()
+        ps_pool.putconn(conn)
+
+        finalList = getResult(processRecent(self.client, record))
+
+        # Display results
+        try:
+            embed = discord.Embed(colour=discord.Colour.blurple())
+            embed.set_thumbnail(url=emoji_image_url)
+            embed.add_field(name=f'Emojis used within the past day', value=f'{finalList}', inline=False)
+            await ctx.send(embed=embed)
+        except Exception:
+            await ctx.send("No data available")
 
 
 def setup(client):

@@ -41,60 +41,36 @@ async def on_ready():
         cursor = conn.cursor()
         try:
             # Create initial tables
-            cursor.execute("""CREATE TABLE IF NOT EXISTS guild(
-                guildid VARCHAR(30),
-                guildname VARCHAR(80),
-                CONSTRAINT pk_guild PRIMARY KEY(guildid)
-            )""")
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS users(
-                userid VARCHAR(30) NOT NULL,
-                guildid VARCHAR(30) NOT NULL,
-                enabled BOOLEAN NOT NULL DEFAULT TRUE,
-            
-                CONSTRAINT pk_users PRIMARY KEY(userid, guildid),
-                CONSTRAINT fk_users FOREIGN KEY(guildid) REFERENCES guild(guildid)
-            )""")
+                CREATE TABLE IF NOT EXISTS emojis(
+                    emoji TEXT NOT NULL,
+                    emojitype VARCHAR(10) NOT NULL,
+                    userid VARCHAR(30) NOT NULL,
+                    guildid VARCHAR(30) NOT NULL,
+                    cnt INT NOT NULL,
+                    emojidate timestamp WITH TIME ZONE,
+                    chid VARCHAR(30),
+                    PRIMARY KEY(emoji, emojitype, userid, guildid, emojidate)
+                )""")
+
             cursor.execute("""
-            CREATE TABLE IF NOT EXISTS channel(
+                CREATE TABLE IF NOT EXISTS channel(
                 chid VARCHAR(30) NOT NULL UNIQUE,
                 chname VARCHAR(30) NOT NULL,
                 guildid VARCHAR(30) NOT NULL,
-                CONSTRAINT pk_channel PRIMARY KEY(chid, guildid),
-                CONSTRAINT fk_channel FOREIGN KEY(guildid) REFERENCES guild(guildid)
-            )""")
-            cursor.execute("""
-            CREATE TABLE IF NOT EXISTS emojis(
                 emoji TEXT NOT NULL,
-                emojitype VARCHAR(10) NOT NULL,
-                userid VARCHAR(30) NOT NULL,
-                guildid VARCHAR(30) NOT NULL,
                 cnt INT NOT NULL,
-                emojidate timestamp WITH TIME ZONE,
-                chid VARCHAR(30),
-                PRIMARY KEY(emoji, emojitype, userid, guildid),
-                CONSTRAINT fk_user_guild FOREIGN KEY(userid, guildid) REFERENCES users(userid, guildid),
-                CONSTRAINT fk_channel FOREIGN KEY(chid) REFERENCES channel(chid)
-            )""")
+                primary key(chid)
+            );
+            """)
 
             # Index emoji date for deleting old entries
             cursor.execute("""CREATE INDEX emojidate_ndx ON emojis(emojidate)""")
             conn.commit()
 
             print(f'Tables created successfully')
-            conn.commit()
         except Exception as e:
-            print('Error creating tables')
-
-        # Read guild and channel data (# of guilds and channels are fairly small, so read all at start)
-        for guild in client.guilds:
-            guild_id = str(guild.id)
-            guild_name = guild.name
-
-            cursor.execute("""
-                INSERT INTO guild(guildid, guildname)
-                VALUES (%s, %s) ON CONFLICT DO NOTHING""", (guild_id, guild_name))
-            conn.commit()
+            print('Tables already exist')
 
         cursor.close()  # Close cursor
         ps_pool.putconn(conn)  # Return connection to pool

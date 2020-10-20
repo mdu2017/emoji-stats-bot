@@ -19,17 +19,13 @@ class General(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_join(self, member):  # method expected by client. This runs once when connected
-        print(f'{member} has joined the server')  # notification of login.
+        server_name = member.guild.name
+        print(f'{member} has joined the server {server_name}')  # notification of login.
 
     @commands.Cog.listener()
     async def on_member_remove(self, member):
-        print(f'{member} has left the server')
-
-    # Change bot status every hour
-    # @tasks.loop(seconds=3600)
-    # async def change_status(self):
-    #     activity = discord.Activity(type=discord.ActivityType.watching, name='!e help')
-    #     await self.client.change_presence(activity=activity)
+        server_name = member.guild.name
+        print(f'{member} has left the server {server_name}')
 
     # TODO: delete unused emoji data after 3 weeks (clear stuff every 3 days)
     # Change bot status every hour
@@ -38,7 +34,11 @@ class General(commands.Cog):
     #     activity = discord.Activity(type=discord.ActivityType.watching, name='!e help')
     #     await self.client.change_presence(activity=activity)
 
-    # TODO: opt out of emoji stats for user
+    @commands.command()
+    async def getservers(self, ctx):
+        guilds = list(self.client.guilds)
+        print(f"Connected on {str(len(guilds))} servers:")
+        print('\n'.join(guild.name for guild in guilds))
 
     # Overrides inherited cog_check method (Check before executing any commands)
     async def cog_check(self, ctx):
@@ -72,6 +72,7 @@ class General(commands.Cog):
         em.add_field(name='favemoji <@username>',
                      value='Display user\'s favorite emoji in the server', inline=False)
         em.add_field(name='fullmsgstats', value='Display stats for all emojis used in the server', inline=False)
+        em.add_field(name='emojistoday', value='Display all emojis used in the last 24 hours', inline=False)
 
         # Reaction commands
         em.add_field(name='userreacts <user>', value='''Displays user\'s top 5 reactions
@@ -83,19 +84,15 @@ class General(commands.Cog):
                      value='''Display user\'s favorite reaction in the server 
                      <@username> - can use mention or nickname''', inline=False)
         em.add_field(name='fullreactstats', value='Display stats for all reactions used in the server', inline=False)
+        em.add_field(name='reactstoday', value='Display all reactions used in the last 24 hours', inline=False)
 
         # Channel commands
-        em.add_field(name='channelstats <channel_name> <option>',
-                     value='''Display top 3 emojis or reactions for a specified channel. 
-                     <channel_name> - name of the channel (no # needed)
-                     <channel_name> and <option> are optional arguments. 
-                     <option> is either "react" or "message"''',
+        em.add_field(name='.chstats <channel_name>',
+                     value='''Display top 3 emojis and reactions for a specified channel. 
+                     <channel_name> - name of the channel (no # needed)''',
                      inline=False)
-        em.add_field(name='fullchstats', value='Shows the most popular emoji and react for each channel if possible',
+        em.add_field(name='fullchstats (currently under work)', value='Shows the most popular emoji and react for each channel if possible',
                      inline=False)
-
-        # Add descriptions for General commands
-        em.add_field(name='ping', value='Display network latency', inline=False)
 
         await author.send(embed=em)
 

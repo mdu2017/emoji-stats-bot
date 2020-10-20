@@ -90,3 +90,16 @@ select * from emojis WHERE emojis.emojidate < '2020-08-27 12:20:36.048955';
 
 -- Delete emojis unused for 3 weeks
 DELETE FROM emojis where emojidate < (NOW() - INTERVAL '21 days');
+
+
+
+-- Code for adding each guild in
+# -- Read guild and channel data (# of guilds and channels are fairly small, so read all at start)
+        for guild in client.guilds:
+            guild_id = str(guild.id)
+            guild_name = guild.name
+
+            cursor.execute("""
+                INSERT INTO guild(guildid, guildname)
+                VALUES (%s, %s) ON CONFLICT DO NOTHING""", (guild_id, guild_name))
+            conn.commit()

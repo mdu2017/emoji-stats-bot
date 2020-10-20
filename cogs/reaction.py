@@ -1,6 +1,4 @@
 import asyncio
-
-import discord
 from discord.ext import commands
 from const import *
 import datetime
@@ -32,17 +30,18 @@ class Reaction(commands.Cog):
         user_id = str(user.id)
         value = str(reaction.emoji)
         guild_id = str(reaction.message.guild.id)
-        curr_time = datetime.datetime.now()
+        curr_time = datetime.datetime.now().strftime("%Y-%m-%d")
 
         # Get db connection and check
         conn, cursor = getConnection()
 
         cursor.execute("""
-            INSERT INTO emojis(emoji, emojitype, userid, guildid, cnt, emojidate, chid)
-            VALUES(%s, %s, %s, %s, %s, %s, %s)
-            ON CONFLICT(emoji, emojitype, userid, guildid)
-            DO UPDATE SET cnt = emojis.cnt + 1, emojidate = %s
-        """, (value, 'react', user_id, str(guild_id), 1, curr_time, ch_id, curr_time))
+                    INSERT INTO emojis(emoji, emojitype, userid, guildid, cnt, emojidate, chid)
+                    VALUES(%s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT(emoji, emojitype, userid, guildid, emojidate) 
+                    DO UPDATE SET cnt = emojis.cnt + 1""",
+                       (value, 'react', user_id, str(guild_id), 1, curr_time, ch_id))
+
         conn.commit()
 
         cursor.close()  # Close cursor
@@ -56,12 +55,14 @@ class Reaction(commands.Cog):
         guild_id = str(reaction.message.guild.id)
         user_id = str(user.id)
         value = str(reaction.emoji)
+        curr_time = datetime.datetime.now().strftime("%Y-%m-%d")
 
         # Get db connection and check
         conn, cursor = getConnection()
 
+
         cursor.execute("""UPDATE emojis SET cnt = emojis.cnt - 1 WHERE emoji = %s AND userid = %s AND guildid = %s
-                        AND emojitype = 'react' AND cnt > 0""", (value, user_id, guild_id))
+                        AND emojitype = 'react' AND cnt > 0 and emojidate = %s""", (value, user_id, guild_id, curr_time))
         conn.commit()
 
         cursor.close()  # Close cursor
@@ -110,7 +111,6 @@ class Reaction(commands.Cog):
         mode = 'normal'
         if lastNdx != -1:
             lastWord = usr_name[lastNdx + 1:]
-            print(f'Last word: {lastWord}')
             if lastWord == 'unicode' or lastWord == 'UNICODE':
                 mode = 'unicode'
                 usr_name = usr_name[:lastNdx]
@@ -118,7 +118,7 @@ class Reaction(commands.Cog):
                 mode = 'custom'
                 usr_name = usr_name[:lastNdx]
 
-        user, username, userID, valid = processName(self.client, ctx, usr_name)
+        user, username, userID, valid = processName(self.client, ctx, str(usr_name))
 
         msg_author = ''
         async for message in ctx.channel.history(limit=1):
@@ -342,7 +342,7 @@ class Reaction(commands.Cog):
                 print('bad')
                 break
 
-    # TODO:
+    # TODO: in progress
     @commands.command(brief='Get most used reaction today')
     async def reactstoday(self, ctx):
         conn, cursor = getConnection()
@@ -353,7 +353,8 @@ class Reaction(commands.Cog):
         guild_id = str(ctx.guild.id)
 
         cursor.execute("""SELECT emoji, cnt FROM emojis 
-            WHERE emojidate > (NOW() - INTERVAL '1 day') AND guildid = %s""", (str(guild_id), ))
+            WHERE emojidate > (NOW() - INTERVAL '1 day') 
+            AND guildid = %s AND emojitype = 'react'""", (str(guild_id), ))
         record = cursor.fetchall()
         cursor.close()
         ps_pool.putconn(conn)
@@ -361,15 +362,18 @@ class Reaction(commands.Cog):
         finalList = getResult(processRecent(self.client, record))
 
         # Display results
-        embed = discord.Embed(colour=discord.Colour.blurple())
-        embed.set_thumbnail(url=emoji_image_url)
-        embed.add_field(name=f'Reactions used within the past day', value=f'{finalList}', inline=False)
-        await ctx.send(embed=embed)
+        try:
+            embed = discord.Embed(colour=discord.Colour.blurple())
+            embed.set_thumbnail(url=emoji_image_url)
+            embed.add_field(name=f'Reactions used within the past day', value=f'{finalList}', inline=False)
+            await ctx.send(embed=embed)
+        except Exception :
+            await ctx.send(f'No data available')
 
 
-    # TODO:
+    # TODO: in progress
     @commands.command(brief='Get top 5 most recently used reactions')
-    async def recentreacts(self,ctx):
+    async def recentreacts(self, ctx):
         print()
 
 
@@ -407,18 +411,6 @@ def gen_embed_pages(finalList, user_name):
         final_pages.append(embed)
 
     return page_content, final_pages
-
-# get recent reactions
-# def get_recent_reacts(cursor, guild_id):
-#     cursor.execute("""SELECT emoji, cnt""")
-#
-#     if len(record) == 0:
-#         return None, None
-#
-#     # Get total reactions used in the server
-#     emojiSum = get_react_sum(cursor, guild_id)
-#
-#     return record
 
 def getTopReacts(cursor, guild_id, amt, mode):
     if mode == 'custom':
