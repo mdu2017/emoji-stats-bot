@@ -24,13 +24,17 @@ class Channel(commands.Cog):
 
         # Grab top 3 most used emojis and reactions in a channel
         cursor.execute("""
-            SELECT emoji, cnt FROM emojis WHERE emojis.chid = %s AND emojitype = 'message' AND guildid = %s
-            ORDER BY cnt DESC LIMIT 3""", (str(ch_id), str(guild_id)))
+                SELECT emoji, SUM(cnt) FROM emojis
+                WHERE emojis.guildid = %s AND chid = %s AND emojitype = 'message' 
+                GROUP BY emoji ORDER BY SUM(cnt) DESC
+                LIMIT 3""", (str(guild_id), str(ch_id)))
         emoji_record = cursor.fetchall()
 
         cursor.execute("""
-                    SELECT emoji, cnt FROM emojis WHERE emojis.chid = %s AND emojitype = 'react' AND guildid = %s
-                    ORDER BY cnt DESC LIMIT 3""", (str(ch_id), str(guild_id)))
+                        SELECT emoji, SUM(cnt) FROM emojis
+                        WHERE emojis.guildid = %s AND chid = %s AND emojitype = 'react' 
+                        GROUP BY emoji ORDER BY SUM(cnt) DESC
+                        LIMIT 3""", (str(guild_id), str(ch_id)))
         react_record = cursor.fetchall()
 
         # Set channel embed

@@ -64,7 +64,7 @@ class General(commands.Cog):
         # Reaction commands
         em.add_field(name='topreacts', value='Shows the 5 most popular reactions', inline=True)
         em.add_field(name='userreacts <username> <mode>', value='Shows a user\'s most used reactions', inline=True)
-        em.add_field(name='favreact <@username>', value='Shows a user\'s favorite reaction', inline=True)
+        em.add_field(name='favreact <username>', value='Shows a user\'s favorite reaction', inline=True)
         em.add_field(name='fullreactstats', value='Shows stats for all reactions used', inline=True)
         em.add_field(name='reactstoday', value='Show all reactions used in the past day', inline=True)
 

@@ -26,6 +26,10 @@ class Message(commands.Cog):
         if message.author == self.client.user:
             return
 
+        # Don't count bot messages in statistics
+        if message.author.bot:
+            return
+
         msg = message.content
 
         ch_id = str(message.channel.id)
