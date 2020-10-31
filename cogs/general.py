@@ -124,49 +124,49 @@ class General(commands.Cog):
         cursor.close()  # Close cursor
         ps_pool.putconn(conn)  # Return connection to pool
 
-    @commands.command(brief='refresh the database')
-    async def refreshData(self, ctx):
-        conn, cursor = getConnection()
+    # @commands.command(brief='refresh the database')
+    # async def refreshData(self, ctx):
+    #     conn, cursor = getConnection()
 
-        for guild in self.client.guilds:
-            guild_id = str(guild.id)
-            guild_name = guild.name
+    #     for guild in self.client.guilds:
+    #         guild_id = str(guild.id)
+    #         guild_name = guild.name
 
-            # Add to list of guilds
-            cursor.execute("""
-                    INSERT INTO guild(guildid, guildname)
-                        VALUES (%s, %s)
-                        ON CONFLICT DO NOTHING
-                        """, (guild_id, guild_name))
-            conn.commit()
+    #         # Add to list of guilds
+    #         cursor.execute("""
+    #                 INSERT INTO guild(guildid, guildname)
+    #                     VALUES (%s, %s)
+    #                     ON CONFLICT DO NOTHING
+    #                     """, (guild_id, guild_name))
+    #         conn.commit()
 
-            # Read channel data
-            for channel in guild.text_channels:
-                ch_id = channel.id
-                ch_name = channel.name
+    #         # Read channel data
+    #         for channel in guild.text_channels:
+    #             ch_id = channel.id
+    #             ch_name = channel.name
 
-                cursor.execute("""
-                    INSERT INTO channel(chid, chname, guildid)
-                    VALUES (%s, %s, %s)
-                    ON CONFLICT DO NOTHING
-                    """, (ch_id, ch_name, guild_id))
-            conn.commit()
+    #             cursor.execute("""
+    #                 INSERT INTO channel(chid, chname, guildid)
+    #                 VALUES (%s, %s, %s)
+    #                 ON CONFLICT DO NOTHING
+    #                 """, (ch_id, ch_name, guild_id))
+    #         conn.commit()
 
-            # Read user list
-            for member in guild.members:
-                user_id = str(member.id)
+    #         # Read user list
+    #         for member in guild.members:
+    #             user_id = str(member.id)
 
-                # Skip adding bot ids
-                if member.bot:
-                    continue
+    #             # Skip adding bot ids
+    #             if member.bot:
+    #                 continue
 
-                cursor.execute("""
-                    INSERT INTO users(userid, guildid)
-                    VALUES (%s, %s) ON CONFLICT DO NOTHING""", (user_id, guild_id))
-            conn.commit()
+    #             cursor.execute("""
+    #                 INSERT INTO users(userid, guildid)
+    #                 VALUES (%s, %s) ON CONFLICT DO NOTHING""", (user_id, guild_id))
+    #         conn.commit()
 
-        cursor.close()  # Close cursor
-        ps_pool.putconn(conn)  # Return connection to pool
+    #     cursor.close()  # Close cursor
+    #     ps_pool.putconn(conn)  # Return connection to pool
 
     @commands.command(brief='refresh the database')
     async def testtimestamp(self, ctx):

@@ -412,6 +412,8 @@ class Message(commands.Cog):
         cursor.execute("""SELECT emoji, cnt FROM emojis 
             WHERE emojidate > (NOW() - INTERVAL '1 day') 
             AND guildid = %s AND emojitype = 'message'""", (str(guild_id),))
+
+
         record = cursor.fetchall()
         cursor.close()
         ps_pool.putconn(conn)
