@@ -3,6 +3,11 @@ from const import *
 from discord.ext import commands
 import discord
 
+# Bot gateway intents
+intents = discord.intents(guilds=True, emojis=True, members=True)
+intents.messages = True
+intents.reactions = True
+
 # Command prefix is .
 client = commands.Bot(command_prefix='!e ')
 client.remove_command('help')
