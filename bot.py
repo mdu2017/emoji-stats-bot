@@ -2,11 +2,10 @@ import os
 from const import *
 from discord.ext import commands
 import discord
+from discord import Intents
 
 # Bot gateway intents
-intents = discord.intents(guilds=True, emojis=True, members=True)
-intents.messages = True
-intents.reactions = True
+intents = Intents(guilds=True, emojis=True, members=True, messages=True, reactions=True)
 
 # Command prefix is .
 client = commands.Bot(command_prefix='!e ')
