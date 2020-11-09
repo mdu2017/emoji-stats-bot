@@ -566,39 +566,3 @@ def get_emoji_sum_usr(cursor, guild_id, userID):
     emojiSum = cursor.fetchone()
     emojiSum = int(emojiSum[0])
     return emojiSum
-
-# Gets username info in commands involving usernames
-def processName(client, ctx, user_name):
-    user = None
-    username = None
-    userID = None
-    valid = True
-
-    if user_name == '':
-        return None, None, None, False
-
-    # If mentioned, get by id, otherwise search each member's nickname
-    if '@' in user_name and '!' in user_name:
-        idStr = str(user_name)
-        idStr = idStr[idStr.index('!') + 1: idStr.index('>')]
-        userID = int(idStr)
-        user = client.get_user(userID)
-        username = user.name
-        print('Getting user by mention')
-    else:
-        print('Getting user by nickname or username')
-        for guild in client.guilds:
-            for member in guild.members:
-                nickname = member.nick
-                mem_name = member.name
-                if str(user_name) == str(mem_name) or str(user_name) == str(nickname):
-                    user = member
-                    username = member.name
-                    userID = member.id
-                    break
-
-    # Check for empty user
-    if user is None:
-        valid = False
-
-    return user, username, userID, valid
