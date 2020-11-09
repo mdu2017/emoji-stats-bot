@@ -8,7 +8,7 @@ from discord import Intents
 intents = Intents(guilds=True, emojis=True, members=True, messages=True, reactions=True)
 
 # Command prefix is .
-client = commands.Bot(command_prefix='!e ')
+client = commands.Bot(command_prefix='!e ', intents=intents)
 client.remove_command('help')
 
 @client.command(brief='(ex: .load <cogName>)')
