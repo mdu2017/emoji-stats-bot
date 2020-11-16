@@ -132,12 +132,17 @@ class General(commands.Cog):
         if dev_id != '353037475016474637':
             print("Not Authorized")
             return
+        else:
+            print("Authorized")
 
         conn, cursor = getConnection()
-        cursor.execute("""DELETE FROM emojis WHERE emojidate < (NOW() - INTERVAL '14 days')""")
+        cursor.execute("""DELETE FROM emojis WHERE emojidate < (NOW() - INTERVAL '14 days') RETURNING *""")
+        deleted_rows = cursor.fetchall()
         conn.commit()
         cursor.close()
         ps_pool.putconn(conn)
+
+        print(len(deleted_rows), ' rows were removed')
 
     # @commands.command(brief='refresh the database')
     # async def refreshData(self, ctx):
