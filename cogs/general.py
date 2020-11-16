@@ -136,7 +136,7 @@ class General(commands.Cog):
             print("Authorized")
 
         conn, cursor = getConnection()
-        cursor.execute("""DELETE FROM emojis WHERE emojidate < (NOW() - INTERVAL '10 days') RETURNING *""")
+        cursor.execute("""DELETE FROM emojis WHERE emojidate < (NOW() - INTERVAL '14 days') RETURNING *""")
         deleted_rows = cursor.fetchall()
         conn.commit()
         cursor.close()
