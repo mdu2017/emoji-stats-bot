@@ -130,7 +130,8 @@ class General(commands.Cog):
         # Developer-only command
         print("ID: ", ctx.author.id)
         print(ctx.author)
-        if ctx.author.id != 353037475016474637:
+        if ctx.author.id != '353037475016474637':
+            print("Bad")
             return
         elif ctx.author.id == '353037475016474637':
             print('yes')
