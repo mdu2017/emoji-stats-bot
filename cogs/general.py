@@ -128,8 +128,12 @@ class General(commands.Cog):
     async def cleanData(self, ctx):
 
         # Developer-only command
+        print("ID: ", ctx.author.id)
+        print(ctx.author)
         if ctx.author.id != 353037475016474637:
             return
+        elif ctx.author.id == '353037475016474637':
+            print('yes')
 
         conn, cursor = getConnection()
         cursor.execute("""DELETE FROM emojis WHERE emojidate < (NOW() - INTERVAL '14 days')""")
