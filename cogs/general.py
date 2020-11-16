@@ -125,16 +125,13 @@ class General(commands.Cog):
         ps_pool.putconn(conn)  # Return connection to pool
 
     @commands.command(brief='Delete old entries in the database')
-    async def cleanData(self, ctx):
+    async def cleanDBData(self, ctx):
 
         # Developer-only command
-        print("ID: ", ctx.author.id)
-        print(ctx.author)
-        if ctx.author.id != '353037475016474637':
-            print("Bad")
+        dev_id = str(ctx.author.id)
+        if dev_id != '353037475016474637':
+            print("Not Authorized")
             return
-        elif ctx.author.id == '353037475016474637':
-            print('yes')
 
         conn, cursor = getConnection()
         cursor.execute("""DELETE FROM emojis WHERE emojidate < (NOW() - INTERVAL '14 days')""")
