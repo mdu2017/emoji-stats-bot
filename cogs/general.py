@@ -133,6 +133,7 @@ class General(commands.Cog):
 
         conn, cursor = getConnection()
         cursor.execute("""DELETE FROM emojis WHERE emojidate < (NOW() - INTERVAL '14 days')""")
+        conn.commit()
         cursor.close()
         ps_pool.putconn(conn)
 
