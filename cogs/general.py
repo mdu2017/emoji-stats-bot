@@ -141,7 +141,7 @@ class General(commands.Cog):
         ps_pool.putconn(conn)  # Return connection to pool
 
     @commands.command(brief='Delete old entries in the database')
-    async def cleanDBData(self, ctx, arg1='14'):
+    async def cleanDBData(self, ctx, arg1=14):
 
         # Developer-only command
         dev_id = str(ctx.author.id)
