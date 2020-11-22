@@ -11,7 +11,7 @@ class General(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-    	self.clean_db.start()  # Checks for db limit and removes accordingly
+        self.clean_db.start()
         print('General Cog Ready')
 
         activity = discord.Activity(type=discord.ActivityType.watching, name='!e help')
@@ -30,7 +30,7 @@ class General(commands.Cog):
     # Change bot status every 12 hours
     @tasks.loop(seconds=43200)
     async def clean_db(self, ctx):
-    	conn, cursor = getConnection()
+        conn, cursor = getConnection()
         cursor.execute("""SELECT COUNT(emoji) FROM emojis;""")
         total_rows = cursor.fetchone()
         conn.commit()
@@ -39,7 +39,7 @@ class General(commands.Cog):
         print(f'Total rows: {total_rows}')
 
         if total_rows >= 9500:
-        	await cleanDBData(self, ctx, 10)
+            await cleanDBData(self, ctx, 10)
 
 
     @commands.command()
