@@ -39,7 +39,7 @@ class General(commands.Cog):
         print(f'Total rows: {total_rows}')
 
         if total_rows >= 9500:
-            await cleanDBData(self, ctx, 10)
+            await self.cleanDBData(self, ctx, 10)
 
 
     @commands.command()
