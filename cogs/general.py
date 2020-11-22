@@ -11,7 +11,7 @@ class General(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self, ctx):
-        self.clean_db.start(ctx)
+        self.clean_db.start(ctx) # Automated cleaning
         print('General Cog Ready')
 
         activity = discord.Activity(type=discord.ActivityType.watching, name='!e help')
