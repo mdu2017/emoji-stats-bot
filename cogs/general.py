@@ -11,6 +11,7 @@ class General(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
+    	# self.clean_db.start()  # Checks for db limit and removes accordingly
         print('General Cog Ready')
 
         activity = discord.Activity(type=discord.ActivityType.watching, name='!e help')
@@ -25,6 +26,21 @@ class General(commands.Cog):
     async def on_member_remove(self, member):
         server_name = member.guild.name
         print(f'{member} has left the server {server_name}')
+
+    # Change bot status every 12 hours
+    # @tasks.loop(seconds=43200)
+    # async def clean_db(self, ctx):
+    # 	conn, cursor = getConnection()
+    #     cursor.execute("""SELECT COUNT(emoji) FROM emojis;""")
+    #     total_rows = cursor.fetchone()
+    #     conn.commit()
+    #     cursor.close()
+    #     ps_pool.putconn(conn)
+    #     print(f'Total rows: {total_rows}')
+
+    #     if total_rows >= 9500:
+    #     	await cleanDBData(self, ctx, 14)
+
 
     @commands.command()
     async def getservers(self, ctx):
@@ -138,7 +154,7 @@ class General(commands.Cog):
         days = arg1
 
         conn, cursor = getConnection()
-        cursor.execute("""DELETE FROM emojis WHERE emojidate < (NOW() - INTERVAL '%s days') RETURNING *""", (days))
+        cursor.execute("""DELETE FROM emojis WHERE emojidate < (NOW() - INTERVAL '%s days') RETURNING *""", (days,))
         deleted_rows = cursor.fetchall()
         conn.commit()
         cursor.close()
