@@ -51,9 +51,6 @@ class General(commands.Cog):
     # Overrides inherited cog_check method (Check before executing any commands)
     async def cog_check(self, ctx):
 
-        # clear command
-        await ctx.channel.purge(limit=1)
-
         # If bot is disabled in the specified channel, don't execute command
         if ctx.channel.name in const.rm_channels:
             return False
@@ -62,6 +59,9 @@ class General(commands.Cog):
 
     @commands.command(pass_context=True)
     async def help(self, ctx):
+
+        await ctx.channel.purge(limit=1)
+
         author = ctx.message.author  # Used to send DM when calling help
 
         # Set ember and header

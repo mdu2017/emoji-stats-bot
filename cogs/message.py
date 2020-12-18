@@ -78,6 +78,8 @@ class Message(commands.Cog):
     # Returns the top 5 most used emojis in messages
     @commands.command(brief='Display overall stats for emojis used in messages')
     async def topemojis(self, ctx, amt=5):
+        await ctx.channel.purge(limit=1)
+
         # Handle invalid amount
         if amt < 1 or amt > 20:
             await ctx.send(f'Error: enter an amount between 1-20')
@@ -122,6 +124,8 @@ class Message(commands.Cog):
 
     @commands.command(brief='Displays most used emojis in messages by user')
     async def useremojis(self, ctx, *args):
+        await ctx.channel.purge(limit=1)
+
         usr_name = ' '.join(args)
 
         # If last word is unicode or custom, it will grab specific types of reactions
@@ -235,6 +239,7 @@ class Message(commands.Cog):
 
     @commands.command(brief='Lists user\'s favorite emote')
     async def favemoji(self, ctx, *args):
+        await ctx.channel.purge(limit=1)
         usr_name = ' '.join(args)
 
         # Get the user info from @mention or user's nickname
@@ -281,6 +286,7 @@ class Message(commands.Cog):
 
     @commands.command(brief='Stat for every emoji used in messages')
     async def fullmsgstats(self, ctx, mode='normal'):
+        await ctx.channel.purge(limit=1)
         guild_id = str(ctx.guild.id)
         msg_author = ''
         async for message in ctx.channel.history(limit=1):
@@ -402,6 +408,7 @@ class Message(commands.Cog):
     # TODO: in progress
     @commands.command(brief='Get most used emojis today')
     async def emojistoday(self, ctx):
+        await ctx.channel.purge(limit=1)
         conn, cursor = getConnection()
 
         today = datetime.datetime.now()

@@ -50,6 +50,7 @@ class Reaction(commands.Cog):
     # Handles processing when reaction is removed from a message
     @commands.Cog.listener()
     async def on_reaction_remove(self, reaction, user):
+
         channel_name = reaction.message.channel.name
 
         guild_id = str(reaction.message.guild.id)
@@ -72,6 +73,7 @@ class Reaction(commands.Cog):
     @commands.command(brief="""Get list of top <N> most used reacts 
         (.topreacts OR .topreacts <num> <mode=normal,custom,unicode>)""")
     async def topreacts(self, ctx, amt=5, mode='normal'):
+        await ctx.channel.purge(limit=1)
         # Handle invalid amount
         if amt < 1 or amt > 20:
             await ctx.send(f'Error: enter an amount between 1-20')
@@ -104,6 +106,7 @@ class Reaction(commands.Cog):
     # Gets a list of reacts by user (Can use nickname or mention)
     @commands.command(brief='Get list of most used reacts by user (.userreacts <@username/nickname>')
     async def userreacts(self, ctx, *args):
+        await ctx.channel.purge(limit=1)
         usr_name = ' '.join(args)
 
         # If last word is unicode or custom, it will grab specific types of reactions
@@ -213,6 +216,7 @@ class Reaction(commands.Cog):
 
     @commands.command(brief='Lists user\'s favorite reaction')
     async def favreact(self, ctx, *args):
+        await ctx.channel.purge(limit=1)
         usr_name = ' '.join(args)
 
         # Get the user info from @mention or user's nickname
@@ -252,6 +256,7 @@ class Reaction(commands.Cog):
 
     @commands.command(brief='Lists full stats for every react (.fullreactstats)')
     async def fullreactstats(self, ctx, mode='normal'):
+        await ctx.channel.purge(limit=1)
         # Get db connection and check
         conn, cursor = getConnection()
         guild_id = ctx.guild.id
@@ -345,6 +350,7 @@ class Reaction(commands.Cog):
     # TODO: in progress
     @commands.command(brief='Get most used reaction today')
     async def reactstoday(self, ctx):
+        await ctx.channel.purge(limit=1)
         conn, cursor = getConnection()
 
         today = datetime.datetime.now()
