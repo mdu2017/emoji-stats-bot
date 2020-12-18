@@ -50,6 +50,10 @@ class General(commands.Cog):
 
     # Overrides inherited cog_check method (Check before executing any commands)
     async def cog_check(self, ctx):
+
+        # clear command
+        await ctx.channel.purge(limit=1)
+
         # If bot is disabled in the specified channel, don't execute command
         if ctx.channel.name in const.rm_channels:
             return False
