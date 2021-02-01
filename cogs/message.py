@@ -50,30 +50,33 @@ class Message(commands.Cog):
             if any(char in UNICODE_EMOJI for char in ch):
                 unimojis.append(ch)
 
-        # Query custom emojis into database if not empty
-        if len(custom_emojis) > 0:
-            for item in custom_emojis:
-                cursor.execute("""
-                    INSERT INTO emojis(emoji, emojitype, userid, guildid, cnt, emojidate, chid)
-                    VALUES(%s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT(emoji, emojitype, userid, guildid, emojidate)
-                    DO UPDATE SET cnt = emojis.cnt + 1
-                """, (item, 'message', str(user_id), str(guild_id), 1, curr_time, ch_id))
-                conn.commit()
+        try:
+            # Query custom emojis into database if not empty
+            if len(custom_emojis) > 0:
+                for item in custom_emojis:
+                    cursor.execute("""
+                        INSERT INTO emojis(emoji, emojitype, userid, guildid, cnt, emojidate, chid)
+                        VALUES(%s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT(emoji, emojitype, userid, guildid, emojidate)
+                        DO UPDATE SET cnt = emojis.cnt + 1
+                    """, (item, 'message', str(user_id), str(guild_id), 1, curr_time, ch_id))
+                    conn.commit()
 
-        # Query unicode emojis into users db
-        if len(unimojis) > 0:
-            for item in unimojis:
-                cursor.execute("""
-                    INSERT INTO emojis(emoji, emojitype, userid, guildid, cnt, emojidate, chid)
-                    VALUES(%s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT(emoji, emojitype, userid, guildid, emojidate)
-                    DO UPDATE SET cnt = emojis.cnt + 1
-                """, (item, 'message', str(user_id), str(guild_id), 1, curr_time, ch_id))
-                conn.commit()
-
-        cursor.close()  # Close cursor
-        ps_pool.putconn(conn)  # Close connection
+            # Query unicode emojis into users db
+            if len(unimojis) > 0:
+                for item in unimojis:
+                    cursor.execute("""
+                        INSERT INTO emojis(emoji, emojitype, userid, guildid, cnt, emojidate, chid)
+                        VALUES(%s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT(emoji, emojitype, userid, guildid, emojidate)
+                        DO UPDATE SET cnt = emojis.cnt + 1
+                    """, (item, 'message', str(user_id), str(guild_id), 1, curr_time, ch_id))
+                    conn.commit()
+        except Exception:
+            await print('Error: database full')
+        finally:
+            cursor.close()  # Close cursor
+            ps_pool.putconn(conn)  # Close connection
 
     # Returns the top 5 most used emojis in messages
     @commands.command(brief='Display overall stats for emojis used in messages')
@@ -90,16 +93,19 @@ class Message(commands.Cog):
         guild_id = ctx.guild.id
 
         # Grabs top 5 most used reacts in messages
-        record, emojiSum = get_top_emojis(cursor, guild_id, amt)
-
-        # Close db stuff
-        cursor.close()
-        ps_pool.putconn(conn)
+        record = None
+        try:
+            record, emojiSum = get_top_emojis(cursor, guild_id, amt)
+        except Exception:
+            await ctx.send('Error gathering records')
+        finally:
+            # Close db stuff
+            cursor.close()
+            ps_pool.putconn(conn)
 
         # Check empty query
         if record is None:
             await ctx.send('No emoji data found')
-            return
 
         # Process final list for displaying
         finalList = processListMsg(self.client, record, emojiSum)
@@ -155,7 +161,15 @@ class Message(commands.Cog):
         # Get db connection and check
         conn, cursor = getConnection()
 
-        record, emojiSum = get_user_emojis(cursor, guild_id, mode, userID)
+        # Get user emoji data
+        record = None
+        try:
+            record, emojiSum = get_user_emojis(cursor, guild_id, mode, userID)
+        except Exception:
+            await ctx.send('Error gathering user emojis')
+        finally:
+            cursor.close()
+            ps_pool.putconn(conn)
 
         if record is None:
             await ctx.send('No emoji data found')
@@ -163,10 +177,6 @@ class Message(commands.Cog):
 
         # Fetch total emojis used
         finalList = processListMsg(self.client, record, emojiSum)
-
-        # Close db stuff
-        cursor.close()
-        ps_pool.putconn(conn)
 
         # If no reaction data from query, return empty
         if len(finalList) == 0:
@@ -253,16 +263,19 @@ class Message(commands.Cog):
         # Get db connection
         conn, cursor = getConnection()
 
-        # Get the data
-        record, emojiSum = get_fav_emoji(cursor, guild_id, userID)
-
-        # Close db stuff
-        cursor.close()
-        ps_pool.putconn(conn)
+        # Get user's favorite emoji
+        record = None
+        try:
+            record, emojiSum = get_fav_emoji(cursor, guild_id, userID)
+        except Exception:
+            await ctx.send('Error getting favorite emoji')
+        finally:
+            cursor.close()
+            ps_pool.putconn(conn)
 
 
         # Check for empty records
-        if len(record) == 0:
+        if record is None:
             await ctx.send('No emoji data found')
             return
 
@@ -302,8 +315,17 @@ class Message(commands.Cog):
         # Get db connection and check
         conn, cursor = getConnection()
 
-        record, emojiSum = get_full_emoji_stats(cursor, guild_id, mode)
-        if len(record) == 0:
+        # Get full emoji stats
+        record = None
+        try:
+            record, emojiSum = get_full_emoji_stats(cursor, guild_id, mode)
+        except Exception:
+            await ctx.send('Error getting emoji stats')
+        finally:
+            cursor.close()
+            ps_pool.putconn(conn)
+
+        if record is None:
             await ctx.send('No emoji data found')
             return
 
@@ -315,10 +337,6 @@ class Message(commands.Cog):
             await ctx.send(f'No data available')
             return
 
-        # Close db stuff
-        cursor.close()
-        ps_pool.putconn(conn)
-
         # If only 1 page, then get the result and display
         page_content, final_pages = gen_embed_pages_emoji(finalList, user_name=ctx.guild.name)
         if len(final_pages) == 1:
@@ -326,7 +344,6 @@ class Message(commands.Cog):
             em.add_field(name='Emojis used in server', value=f'{page_content[0]}', inline=False)
             await ctx.send(embed=em)
             return
-
 
         # TODO: multiple page embeds
         index = 0  # index keeps track of current item's index
@@ -409,22 +426,30 @@ class Message(commands.Cog):
     @commands.command(brief='Get most used emojis today')
     async def emojistoday(self, ctx):
         await ctx.channel.purge(limit=1)
-        conn, cursor = getConnection()
 
         today = datetime.datetime.now()
         last_24hr = today - datetime.timedelta(days=1)
 
         guild_id = str(ctx.guild.id)
 
-        cursor.execute("""SELECT emoji, cnt FROM emojis 
-            WHERE emojidate > (NOW() - INTERVAL '1 day') 
-            AND guildid = %s AND emojitype = 'message'""", (str(guild_id),))
+        conn, cursor = getConnection()
 
+        record = None
+        try:
+            cursor.execute("""SELECT emoji, cnt FROM emojis 
+                WHERE emojidate > (NOW() - INTERVAL '1 day') 
+                AND guildid = %s AND emojitype = 'message'""", (str(guild_id),))
+        except Exception:
+            await ctx.send('Error gathering emojis today')
+        finally:
+            cursor.close()
+            ps_pool.putconn(conn)
+
+        if record is None:
+            await ctx.send('No emoji data found')
+            return
 
         record = cursor.fetchall()
-        cursor.close()
-        ps_pool.putconn(conn)
-
         finalList = getResult(processRecent(self.client, record))
 
         # Display results

@@ -107,42 +107,46 @@ class General(commands.Cog):
         guild_id = str(guild.id)
         guild_name = guild.name
 
-        # Add to list of guilds
-        cursor.execute("""
-        INSERT INTO guild(guildid, guildname)
-            VALUES (%s, %s)
-            ON CONFLICT DO NOTHING
-            """, (guild_id, guild_name))
-        conn.commit()
 
-        # Read channel data
-        for channel in guild.text_channels:
-            ch_id = channel.id
-            ch_name = channel.name
-
+        try:
+            # Add to list of guilds
             cursor.execute("""
-                            INSERT INTO channel(chid, chname, guildid)
-                            VALUES (%s, %s, %s)
-                            ON CONFLICT DO NOTHING
-                            """, (ch_id, ch_name, guild_id))
-        conn.commit()
+            INSERT INTO guild(guildid, guildname)
+                VALUES (%s, %s)
+                ON CONFLICT DO NOTHING
+                """, (guild_id, guild_name))
+            conn.commit()
 
-        # Read user list
-        for member in guild.members:
-            user_id = str(member.id)
+            # Read channel data
+            for channel in guild.text_channels:
+                ch_id = channel.id
+                ch_name = channel.name
 
-            # Skip adding bot ids
-            if member.bot:
-                continue
+                cursor.execute("""
+                                INSERT INTO channel(chid, chname, guildid)
+                                VALUES (%s, %s, %s)
+                                ON CONFLICT DO NOTHING
+                                """, (ch_id, ch_name, guild_id))
+            conn.commit()
 
-            cursor.execute("""
-                INSERT INTO users(userid, guildid, enabled)
-                VALUES (%s, %s, True)
-                ON CONFLICT DO NOTHING""", (user_id, guild_id))
-        conn.commit()
+            # Read user list
+            for member in guild.members:
+                user_id = str(member.id)
 
-        cursor.close()  # Close cursor
-        ps_pool.putconn(conn)  # Return connection to pool
+                # Skip adding bot ids
+                if member.bot:
+                    continue
+
+                cursor.execute("""
+                    INSERT INTO users(userid, guildid, enabled)
+                    VALUES (%s, %s, True)
+                    ON CONFLICT DO NOTHING""", (user_id, guild_id))
+            conn.commit()
+        except Exception:
+            print('Data already cached')
+        finally:
+            cursor.close()  # Close cursor
+            ps_pool.putconn(conn)  # Return connection to pool
 
     @commands.command(brief='Delete old entries in the database')
     async def cleanDBData(self, ctx, arg1=14):
@@ -166,6 +170,7 @@ class General(commands.Cog):
 
         print(len(deleted_rows), ' rows were removed')
 
+    ''' Testing function '''
     # @commands.command(brief='refresh the database')
     # async def refreshData(self, ctx):
     #     conn, cursor = getConnection()
@@ -210,13 +215,14 @@ class General(commands.Cog):
     #     cursor.close()  # Close cursor
     #     ps_pool.putconn(conn)  # Return connection to pool
 
-    @commands.command(brief='refresh the database')
-    async def testtimestamp(self, ctx):
-        conn, cursor = getConnection()
-
-        today = datetime.datetime.today()
-        three_weeks_ago = today - datetime.timedelta(weeks=3)
-        really_old = today - datetime.timedelta(weeks=4)
+    ''' Testing function '''
+    # @commands.command(brief='refresh the database')
+    # async def testtimestamp(self, ctx):
+    #     conn, cursor = getConnection()
+    #
+    #     today = datetime.datetime.today()
+    #     three_weeks_ago = today - datetime.timedelta(weeks=3)
+    #     really_old = today - datetime.timedelta(weeks=4)
 
         # cursor.execute("""
         #     INSERT INTO emojis(emoji, emojitype, userid, guildid, cnt, emojidate, chid)
@@ -241,8 +247,8 @@ class General(commands.Cog):
         # print(f'Record of old entries: {record}')
 
 
-        cursor.close()  # Close cursor
-        ps_pool.putconn(conn)  # Return connection to pool
+        # cursor.close()  # Close cursor
+        # ps_pool.putconn(conn)  # Return connection to pool
 
 def setup(client):
     client.add_cog(General(client))
