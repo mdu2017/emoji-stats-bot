@@ -35,17 +35,19 @@ class Reaction(commands.Cog):
         # Get db connection and check
         conn, cursor = getConnection()
 
-        cursor.execute("""
-                    INSERT INTO emojis(emoji, emojitype, userid, guildid, cnt, emojidate, chid)
-                    VALUES(%s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT(emoji, emojitype, userid, guildid, emojidate) 
-                    DO UPDATE SET cnt = emojis.cnt + 1""",
-                       (value, 'react', user_id, str(guild_id), 1, curr_time, ch_id))
-
-        conn.commit()
-
-        cursor.close()  # Close cursor
-        ps_pool.putconn(conn)  # Close connection
+        try:
+            cursor.execute("""
+                        INSERT INTO emojis(emoji, emojitype, userid, guildid, cnt, emojidate, chid)
+                        VALUES(%s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT(emoji, emojitype, userid, guildid, emojidate) 
+                        DO UPDATE SET cnt = emojis.cnt + 1""",
+                           (value, 'react', user_id, str(guild_id), 1, curr_time, ch_id))
+            conn.commit()
+        except Exception:
+            print('Error: database is full')
+        finally:
+            cursor.close()  # Close cursor
+            ps_pool.putconn(conn)  # Close connection
 
     # Handles processing when reaction is removed from a message
     @commands.Cog.listener()
@@ -61,13 +63,15 @@ class Reaction(commands.Cog):
         # Get db connection and check
         conn, cursor = getConnection()
 
-
-        cursor.execute("""UPDATE emojis SET cnt = emojis.cnt - 1 WHERE emoji = %s AND userid = %s AND guildid = %s
-                        AND emojitype = 'react' AND cnt > 0 and emojidate = %s""", (value, user_id, guild_id, curr_time))
-        conn.commit()
-
-        cursor.close()  # Close cursor
-        ps_pool.putconn(conn)  # Close connection
+        try:
+            cursor.execute("""UPDATE emojis SET cnt = emojis.cnt - 1 WHERE emoji = %s AND userid = %s AND guildid = %s
+                            AND emojitype = 'react' AND cnt > 0 and emojidate = %s""", (value, user_id, guild_id, curr_time))
+            conn.commit()
+        except Exception:
+            print('Error: database full')
+        finally:
+            cursor.close()  # Close cursor
+            ps_pool.putconn(conn)  # Close connection
 
     # Gets the list of most used emojis for reactions
     @commands.command(brief="""Get list of top <N> most used reacts 
@@ -84,7 +88,14 @@ class Reaction(commands.Cog):
         guild_id = ctx.guild.id
 
         # Query records for top reactions
-        record, title, emojiSum = getTopReacts(cursor, guild_id, amt, mode)
+        record = None
+        try:
+            record, title, emojiSum = getTopReacts(cursor, guild_id, amt, mode)
+        except Exception:
+            await ctx.send('Error gathering top reaction data')
+        finally:
+            cursor.close()  # Close cursor
+            ps_pool.putconn(conn)  # Close connection
 
         if record is None:
             await ctx.send(f'No reaction data available')
@@ -100,14 +111,12 @@ class Reaction(commands.Cog):
         embed.add_field(name=f'{title}', value=f'{result}', inline=False)
         await ctx.send(embed=embed)
 
-        cursor.close()  # Close cursor
-        ps_pool.putconn(conn)  # Close connection
-
     # Gets a list of reacts by user (Can use nickname or mention)
     @commands.command(brief='Get list of most used reacts by user (.userreacts <@username/nickname>')
     async def userreacts(self, ctx, *args):
         await ctx.channel.purge(limit=1)
         usr_name = ' '.join(args)
+        guild_id = ctx.guild.id
 
         # If last word is unicode or custom, it will grab specific types of reactions
         lastNdx = usr_name.rfind(' ')
@@ -133,12 +142,16 @@ class Reaction(commands.Cog):
 
         # Get db connection and check
         conn, cursor = getConnection()
-        guild_id = ctx.guild.id
 
         # Fetch user records and reaction count
-        record, emojiSum = getUserReacts(cursor, guild_id, userID, mode)
-        cursor.close()  # Close cursor
-        ps_pool.putconn(conn)  # Close connection
+        record = None
+        try:
+            record, emojiSum = getUserReacts(cursor, guild_id, userID, mode)
+        except Exception:
+            await ctx.send('Error gathering user reaction data')
+        finally:
+            cursor.close()  # Close cursor
+            ps_pool.putconn(conn)  # Close connection
 
         # Check for empty record
         if record is None:
@@ -231,9 +244,14 @@ class Reaction(commands.Cog):
         conn, cursor = getConnection()
 
         # Get the data
-        record, emojiSum = getFavoriteReact(cursor, userID, guild_id)
-        cursor.close()
-        ps_pool.putconn(conn)
+        record = None
+        try:
+            record, emojiSum = getFavoriteReact(cursor, userID, guild_id)
+        except Exception:
+            await ctx.send('Error getting favorite emoji')
+        finally:
+            cursor.close()
+            ps_pool.putconn(conn)
 
         # Check for empty records
         if record is None:
@@ -271,10 +289,14 @@ class Reaction(commands.Cog):
             mode = 'custom'
 
         # Grabs all reactions
-        record, emojiSum = getFullReactStats(cursor, guild_id, mode)
-
-        cursor.close()  # Close cursor
-        ps_pool.putconn(conn)  # Close connection
+        record = None
+        try:
+            record, emojiSum = getFullReactStats(cursor, guild_id, mode)
+        except Exception:
+            await ctx.send('Error gathering reaction stats')
+        finally:
+            cursor.close()  # Close cursor
+            ps_pool.putconn(conn)  # Close connection
 
         # Handle empty results
         if record is None:
@@ -351,19 +373,29 @@ class Reaction(commands.Cog):
     @commands.command(brief='Get most used reaction today')
     async def reactstoday(self, ctx):
         await ctx.channel.purge(limit=1)
-        conn, cursor = getConnection()
 
         today = datetime.datetime.now()
         last_24hr = today - datetime.timedelta(days=1)
-
         guild_id = str(ctx.guild.id)
 
-        cursor.execute("""SELECT emoji, cnt FROM emojis 
-            WHERE emojidate > (NOW() - INTERVAL '1 day') 
-            AND guildid = %s AND emojitype = 'react'""", (str(guild_id), ))
-        record = cursor.fetchall()
-        cursor.close()
-        ps_pool.putconn(conn)
+        conn, cursor = getConnection()
+
+        # Gather reactions used today
+        record = None
+        try:
+            cursor.execute("""SELECT emoji, cnt FROM emojis 
+                WHERE emojidate > (NOW() - INTERVAL '1 day') 
+                AND guildid = %s AND emojitype = 'react'""", (str(guild_id), ))
+            record = cursor.fetchall()
+        except Exception:
+            await ctx.send('Error gathering reactions today')
+        finally:
+            cursor.close()
+            ps_pool.putconn(conn)
+
+        if record is None:
+            await ctx.send('No reaction data available')
+            return
 
         finalList = getResult(processRecent(self.client, record))
 
@@ -375,7 +407,6 @@ class Reaction(commands.Cog):
             await ctx.send(embed=embed)
         except Exception :
             await ctx.send(f'No data available')
-
 
     # TODO: in progress
     @commands.command(brief='Get top 5 most recently used reactions')
