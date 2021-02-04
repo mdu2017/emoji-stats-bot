@@ -7,4 +7,5 @@ token.txt
 __pycache__/
 cogs/__pycache__/
 .idea/
-./linecheck.py
+./linecheck.py"dbcred.txt" 
+"token.txt" 
