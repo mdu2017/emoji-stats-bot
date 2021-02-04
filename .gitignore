@@ -10,4 +10,4 @@ cogs/__pycache__/
 ./linecheck.py"dbcred.txt" 
 "token.txt"
 *.sql
-
+linecheck.py
