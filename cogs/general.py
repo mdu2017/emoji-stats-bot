@@ -170,7 +170,7 @@ class General(commands.Cog):
 
         print(len(deleted_rows), ' rows were removed')
 
-    ''' Testing function '''
+    ''' Testing function to refresh cache'''
     # @commands.command(brief='refresh the database')
     # async def refreshData(self, ctx):
     #     conn, cursor = getConnection()
@@ -215,7 +215,7 @@ class General(commands.Cog):
     #     cursor.close()  # Close cursor
     #     ps_pool.putconn(conn)  # Return connection to pool
 
-    ''' Testing function '''
+    ''' Test timestamp query'''
     # @commands.command(brief='refresh the database')
     # async def testtimestamp(self, ctx):
     #     conn, cursor = getConnection()
