@@ -16,19 +16,19 @@ Usage:
 # Commands
 
 | Command        | Description  |
-| ------------- |:-------------:| 
-| topemojis  | Shows the top 5 most popular emojis | 
-| useremojis \<username\> \<mode\>  | Shows user's most used emojis | 
-| fullmsgstats | Shows stats for all emojis used in messages | 
-| favemoji \<username\>  | Shows a user\'s favorite emoji | 
-| emojistoday | Show all emojis used in the past day | 
+| ------------- |:-------------:|
+| topemojis  | Shows the top 5 most popular emojis |
+| useremojis \<username\> \<mode\>  | Shows user's most used emojis |
+| fullmsgstats | Shows stats for all emojis used in messages |
+| favemoji \<username\>  | Shows a user\'s favorite emoji |
+| emojistoday | Show all emojis used in the past day |
 | chstats \<channel_name\> | Shows a channel's top 3 most popular reactions/emojis |
-| fullchstats | Shows the most popular reaction/emoji for every channel | 
-| topreacts  | Shows the top 5 most popular reactions | 
-| userreacts \<username\> \<mode\>  | Shows a user's most used reactions | 
-| favreact \<username\>  | Shows a user's favorite reaction | 
-| fullreactstats | Shows stats on all reactions used | 
-| reactstoday | Show all reactions used in the past day | 
+| fullchstats | Shows the most popular reaction/emoji for every channel |
+| topreacts  | Shows the top 5 most popular reactions |
+| userreacts \<username\> \<mode\>  | Shows a user's most used reactions |
+| favreact \<username\>  | Shows a user's favorite reaction |
+| fullreactstats | Shows stats on all reactions used |
+| reactstoday | Show all reactions used in the past day |
 
 \<username\> - can use Discord nickname or mention user
 

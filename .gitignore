@@ -1,4 +1,7 @@
-*.txt
+link.txt
+passwd.txt
+dbcred.txt
+token.txt
 *.png
 *.jpg
 __pycache__/

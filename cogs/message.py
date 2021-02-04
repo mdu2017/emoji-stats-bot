@@ -436,8 +436,8 @@ class Message(commands.Cog):
 
         record = None
         try:
-            cursor.execute("""SELECT emoji, cnt FROM emojis 
-                WHERE emojidate > (NOW() - INTERVAL '1 day') 
+            cursor.execute("""SELECT emoji, cnt FROM emojis
+                WHERE emojidate > (NOW() - INTERVAL '1 day')
                 AND guildid = %s AND emojitype = 'message'""", (str(guild_id),))
         except Exception:
             await ctx.send('Error gathering emojis today')
@@ -593,7 +593,7 @@ def get_emoji_sum(cursor, guild_id):
 # Get sum of total emojis used in user emoji commands
 def get_emoji_sum_usr(cursor, guild_id, userID):
     cursor.execute("""
-                SELECT SUM(cnt) FROM emojis WHERE userid = %s 
+                SELECT SUM(cnt) FROM emojis WHERE userid = %s
                 AND emojitype = 'message' AND guildid = %s""", (str(userID), str(guild_id)))
     emojiSum = cursor.fetchone()
     emojiSum = int(emojiSum[0])

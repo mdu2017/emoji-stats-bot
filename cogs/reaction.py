@@ -39,7 +39,7 @@ class Reaction(commands.Cog):
             cursor.execute("""
                         INSERT INTO emojis(emoji, emojitype, userid, guildid, cnt, emojidate, chid)
                         VALUES(%s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT(emoji, emojitype, userid, guildid, emojidate) 
+                        ON CONFLICT(emoji, emojitype, userid, guildid, emojidate)
                         DO UPDATE SET cnt = emojis.cnt + 1""",
                            (value, 'react', user_id, str(guild_id), 1, curr_time, ch_id))
             conn.commit()
@@ -74,7 +74,7 @@ class Reaction(commands.Cog):
             ps_pool.putconn(conn)  # Close connection
 
     # Gets the list of most used emojis for reactions
-    @commands.command(brief="""Get list of top <N> most used reacts 
+    @commands.command(brief="""Get list of top <N> most used reacts
         (.topreacts OR .topreacts <num> <mode=normal,custom,unicode>)""")
     async def topreacts(self, ctx, amt=5, mode='normal'):
         await ctx.channel.purge(limit=1)
@@ -383,8 +383,8 @@ class Reaction(commands.Cog):
         # Gather reactions used today
         record = None
         try:
-            cursor.execute("""SELECT emoji, cnt FROM emojis 
-                WHERE emojidate > (NOW() - INTERVAL '1 day') 
+            cursor.execute("""SELECT emoji, cnt FROM emojis
+                WHERE emojidate > (NOW() - INTERVAL '1 day')
                 AND guildid = %s AND emojitype = 'react'""", (str(guild_id), ))
             record = cursor.fetchall()
         except Exception:
@@ -589,7 +589,7 @@ def get_react_sum_user(cursor, user_id, guild_id):
 def get_react_sum(cursor, guild_id):
     # Get total reactions used in the server
     cursor.execute("""
-        SELECT SUM(cnt) FROM emojis 
+        SELECT SUM(cnt) FROM emojis
         WHERE emojitype = 'react' AND guildid = %s""", (str(guild_id),))
     emojiSum = cursor.fetchone()
     emojiSum = int(emojiSum[0])

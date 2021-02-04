@@ -12,7 +12,7 @@ class Channel(commands.Cog):
         print('Channel cog ready')
 
     # Top 3 most popular emojis for reactions/messages for a channel (optional type)
-    @commands.command(brief='''Top 3 emojis for reactions/messages 
+    @commands.command(brief='''Top 3 emojis for reactions/messages
                             (.chstats <channel_name> <option=message,react>)''')
     async def chstats(self, ctx, ch=''):
 
@@ -26,14 +26,14 @@ class Channel(commands.Cog):
             # Grab top 3 most used emojis and reactions in a channel
             cursor.execute("""
                     SELECT emoji, SUM(cnt) FROM emojis
-                    WHERE emojis.guildid = %s AND chid = %s AND emojitype = 'message' 
+                    WHERE emojis.guildid = %s AND chid = %s AND emojitype = 'message'
                     GROUP BY emoji ORDER BY SUM(cnt) DESC
                     LIMIT 3""", (str(guild_id), str(ch_id)))
             emoji_record = cursor.fetchall()
 
             cursor.execute("""
                             SELECT emoji, SUM(cnt) FROM emojis
-                            WHERE emojis.guildid = %s AND chid = %s AND emojitype = 'react' 
+                            WHERE emojis.guildid = %s AND chid = %s AND emojitype = 'react'
                             GROUP BY emoji ORDER BY SUM(cnt) DESC
                             LIMIT 3""", (str(guild_id), str(ch_id)))
             react_record = cursor.fetchall()
@@ -130,7 +130,7 @@ def setup(client):
 
 def getEmojiSumChn(cursor, ch_id, guild_id):
     cursor.execute("""
-                SELECT SUM(cnt) FROM emojis 
+                SELECT SUM(cnt) FROM emojis
                 WHERE emojis.chid = %s AND emojitype = 'message'
                 AND guildid = %s""", (str(ch_id), guild_id))
     emojiSum = cursor.fetchone()
@@ -143,7 +143,7 @@ def getEmojiSumChn(cursor, ch_id, guild_id):
 
 def getRctSumChn(cursor, ch_id, guild_id):
     cursor.execute("""
-                SELECT SUM(cnt) FROM emojis 
+                SELECT SUM(cnt) FROM emojis
                 WHERE emojis.chid = %s AND emojitype = 'react'
                 AND guildid = %s""", (str(ch_id), guild_id))
     emojiSum = cursor.fetchone()
