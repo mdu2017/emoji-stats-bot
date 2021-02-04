@@ -3,6 +3,7 @@ from itertools import cycle
 import psycopg2
 from psycopg2 import pool
 import discord
+import datetime
 
 # Emojis for turning page back/forward
 right_arrow = '\U000025B6'
@@ -49,7 +50,6 @@ custom_status = cycle([f'!e help'])
 # Channels to disable bot commands for
 rm_channels = []
 
-
 def getEmojiName(key):
     name = 'EMOJI'
     try:
@@ -58,6 +58,42 @@ def getEmojiName(key):
         print(f'Error: {ex}')
 
     return name
+
+# Gets username info in commands involving usernames
+def processName(client, ctx, user_name):
+    user = None
+    username = None
+    userID = None
+    valid = True
+
+    if user_name == '':
+        return None, None, None, False
+
+    # If mentioned, get by id, otherwise search each member's nickname
+    if '@' in user_name and '!' in user_name:
+        idStr = str(user_name)
+        idStr = idStr[idStr.index('!') + 1: idStr.index('>')]
+        userID = int(idStr)
+        user = client.get_user(userID)
+        username = user.name
+        print('Getting user by mention')
+    else:
+        print('Getting user by nickname or username')
+        for guild in client.guilds:
+            for member in guild.members:
+                nickname = member.nick
+                mem_name = member.name
+                if str(user_name) == str(mem_name) or str(user_name) == str(nickname):
+                    user = member
+                    username = member.name
+                    userID = member.id
+                    break
+
+    # Check for empty user
+    if user is None:
+        valid = False
+
+    return user, username, userID, valid
 
 
 # Used in all the commands to process data
@@ -84,16 +120,16 @@ def processListMsg(client, record, emojiSum):
             if currEmoji is not None:
                 name = currEmoji.name
             finalList.append(
-                f'{spacing}{currEmoji} - {name} used ({data[key]}) times | {percentage}% of use.')
+                f'{spacing}{currEmoji} - {name} used (`{data[key]}`) times | `{percentage}%`')
 
         else:
             temp = getEmojiName(key)  # TODO: Some emojis won't have a name so 'EMOJI' is by default
-            finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times | {percentage}% of use.')
+            finalList.append(f'{spacing}{key} - {temp} used (`{data[key]}`) times | `{percentage}%`')
 
     return finalList
 
 
-def processListChn(client, record, emojiSum, typeStr, channel_name):
+def processListChn(client, record, emojiSum, channel_name):
     data = dict(record)
     finalList = []
 
@@ -116,13 +152,13 @@ def processListChn(client, record, emojiSum, typeStr, channel_name):
             if currEmoji is not None:
                 name = currEmoji.name
             finalList.append(
-                f'{spacing}{currEmoji} - {name} used ({data[key]}) times '
-                f'| {percentage}% of {typeStr} used in #{channel_name}')
+                f'{spacing}{currEmoji} - {name} used (`{data[key]}`) times '
+                f'| `{percentage}%`')
 
         else:
             temp = getEmojiName(key)  # TODO: Some reacts won't have a name so 'EMOJI' is by default
-            finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times '
-                             f'| {percentage}% of {typeStr} used in #{channel_name}')
+            finalList.append(f'{spacing}{key} - {temp} used (`{data[key]}`) times '
+                             f'| `{percentage}%`')
 
     return finalList
 
@@ -150,78 +186,68 @@ def processListRct(client, record, emojiSum):
             if currEmoji is not None:
                 name = currEmoji.name
             finalList.append(
-                f'{spacing}{currEmoji} - {name} used ({data[key]}) times | {percentage}% of all reacts.')
+                f'{spacing}{currEmoji} - {name} used (`{data[key]}`) times | `{percentage}%`')
 
         else:
             temp = getEmojiName(key)  # TODO: Some reacts won't have a name so 'EMOJI' is by default
-            finalList.append(f'{spacing}{key} - {temp} used ({data[key]}) times | {percentage}% of all reacts.')
+            finalList.append(f'{spacing}{key} - {temp} used (`{data[key]}`) times | `{percentage}%`')
 
     return finalList
 
 
-# Gets username info in commands involving usernames
-def processName(client, ctx, user_name):
-    user = None
-    username = None
-    userID = None
-    valid = True
-
-    if user_name == '':
-        return None, None, None, False
-
-    # If mentioned, get by id, otherwise search each member's nickname
-    if '@' in user_name and '!' in user_name:
-        idStr = str(user_name)
-        idStr = idStr[idStr.index('!') + 1: idStr.index('>')]
-        userID = int(idStr)
-        user = client.get_user(userID)
-        username = user.name
-    else:
-        for guild in client.guilds:
-            for member in guild.members:
-                nickname = member.nick
-                if str(user_name) == str(nickname):
-                    user = member
-                    username = member.name
-                    userID = member.id
-                    break
-
-    # Check for empty user
-    if user is None:
-        valid = False
-
-    return user, username, userID, valid
-
-
-def processChName(client, ctx, ch, option):
+def processChName(client, ctx, ch):
     valid_channel = True
     valid_option = True
     channel_name = ch
+    ch_id = ''
 
     # If no channel name specified, use current channel. If invalid channel name, exit
     if ch == '':
-        channel_name = ctx.channel.name
+        channel_name = str(ctx.channel.name)
+        ch_id = str(ctx.channel.id)
     else:
         found = False
         for channel in ctx.guild.text_channels:
             if channel.name == ch:
                 found = True
                 channel_name = ch
+                ch_id = channel.id
                 break
         if not found:
             valid_channel = False
 
-    # handle invalid type
-    if option != 'react' and option != 'message':
-        valid_option = False
 
-    # Used in formatted print
-    if option == 'react':
-        typeStr = 'reactions'
-    else:
-        typeStr = 'emojis'
+    return channel_name, ch_id, valid_channel
 
-    return channel_name, typeStr, valid_channel, valid_option
+def processRecent(client, record):
+    data = dict(record)  # convert record to dictionary
+    finalList = []
+
+    # Convert emoji into discord representation
+    for key in data:
+        keystr = str(key)
+        spacing = ''
+        if len(finalList) == 0:  # Spacing for first item
+            spacing = ' '
+        else:
+            spacing = ''
+
+        if '<' in keystr:  # If it's a custom emoji, parse ID
+            startIndex = keystr.rindex(':') + 1
+            endIndex = keystr.index('>')
+            id = int(key[startIndex:endIndex])
+            name = 'EMOJI'
+            currEmoji = client.get_emoji(id)
+            if currEmoji is not None:
+                name = currEmoji.name
+            finalList.append(
+                f'{spacing}{currEmoji} - `{name}`')
+
+        else:
+            temp = getEmojiName(key)  # TODO: Some reacts won't have a name so 'EMOJI' is by default
+            finalList.append(f'{spacing}{key} - `{temp}`')
+
+    return finalList
 
 
 def fullChStatsResult(reactData, emojiData):
