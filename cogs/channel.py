@@ -13,57 +13,74 @@ class Channel(commands.Cog):
 
     # Top 3 most popular emojis for reactions/messages for a channel (optional type)
     @commands.command(brief='''Top 3 emojis for reactions/messages 
-                            (.channelstats OR.channelstats <channel_name> <option=message,react>)''')
-    async def chstats(self, ctx, ch='', option='message'):
-
-        channel_name, typeStr, valid_channel, valid_option = processChName(self.client, ctx, ch, option)
-
-        if not valid_channel:
-            err_embed = discord.Embed(colour=discord.Colour.dark_orange(),
-                    description=f'Text Channel #{ch} was not found\nUsage: .channelstats <channel_name> <option>')
-            await ctx.send(embed=err_embed)
-            return
-        if not valid_option:
-            err_embed = discord.Embed(colour=discord.Colour.dark_orange(),
-                    description=f'<option>(s) are: \'react\' OR \'message\'\nUsage: .channelstats <channel_name> <option>')
-            await ctx.send(embed=err_embed)
-            return
+                            (.chstats <channel_name> <option=message,react>)''')
+    async def chstats(self, ctx, ch=''):
 
         # Get db connection and check
         conn, cursor = getConnection()
-        guild_id = ctx.guild.id
+        guild_id = str(ctx.guild.id)
 
-        # Grab top 3 most used emojis in a channel
-        cursor.execute("""
-            SELECT reactid, cnt FROM channel
-            WHERE channel.chname = %s AND emojitype = %s AND guildid = %s
-            ORDER BY cnt DESC LIMIT 3""", (channel_name, option, guild_id))
-        record = cursor.fetchall()
+        try:
+            channel_name, ch_id, valid_channel = processChName(self.client, ctx, ch)
 
-        # Check for empty data
-        if len(record) == 0:
-            err_embed = discord.Embed(colour=discord.Colour.dark_orange(),
-                    description=f'No emoji data available for #{channel_name}')
-            await ctx.send(embed=err_embed)
-            return
+            # Grab top 3 most used emojis and reactions in a channel
+            cursor.execute("""
+                    SELECT emoji, SUM(cnt) FROM emojis
+                    WHERE emojis.guildid = %s AND chid = %s AND emojitype = 'message' 
+                    GROUP BY emoji ORDER BY SUM(cnt) DESC
+                    LIMIT 3""", (str(guild_id), str(ch_id)))
+            emoji_record = cursor.fetchall()
 
-        # Grab total count of used emojis
-        emojiSum = getEmojiSumChn(cursor, channel_name, option, guild_id)
+            cursor.execute("""
+                            SELECT emoji, SUM(cnt) FROM emojis
+                            WHERE emojis.guildid = %s AND chid = %s AND emojitype = 'react' 
+                            GROUP BY emoji ORDER BY SUM(cnt) DESC
+                            LIMIT 3""", (str(guild_id), str(ch_id)))
+            react_record = cursor.fetchall()
 
-        finalList = processListChn(self.client, record, emojiSum, typeStr, channel_name)
-        result = getResult(finalList)
+            # Set channel embed
+            ch_embed = discord.Embed(
+                colour=discord.Colour.blurple(),
+            )
+            ch_embed.set_thumbnail(url=emoji_image_url)
 
-        em = discord.Embed(
-            colour=discord.Colour.blurple(),
-        )
-        em.set_thumbnail(url=emoji_image_url)
-        em.add_field(name=f'Top 3 {typeStr} used in #{channel_name}', value=f'{result}', inline=False)
+            # Check for empty emoji data
+            if len(emoji_record) == 0:
+                ch_embed.add_field(name=f'No Emoji data available', value='-', inline=False)
+            else:
+                # Grab total count of used emojis
+                emojiSum = getEmojiSumChn(cursor, ch_id, guild_id)
+                if emojiSum == -1:
+                    ch_embed.add_field(name=f'No Emoji sum available', value='-', inline=False)
 
-        await ctx.send(embed=em)
+                # Get final emoji list
+                finalList = processListChn(self.client, emoji_record, emojiSum, channel_name)
+                emoji_result = getResult(finalList)
+                ch_embed.add_field(name=f'Top 3 emojis used in #{channel_name}', value=f'{emoji_result}', inline=False)
 
-        cursor.close()  # Close cursor
-        ps_pool.putconn(conn)  # Close connection
+            # Handle react portion of code
+            if len(react_record) == 0:
+                ch_embed.add_field(name=f'No reaction data available', value='-', inline=False)
+            else:
+                # Check emoji count
+                emojiSum = getRctSumChn(cursor, ch_id, guild_id)
+                if emojiSum == -1:
+                    ch_embed.add_field(name=f'No reaction sum available', value='-', inline=False)
 
+                # Process reaction results
+                finalList = processListChn(self.client, react_record, emojiSum, channel_name)
+                react_result = getResult(finalList)
+                ch_embed.add_field(name=f'Top 3 reactions used in #{channel_name}', value=f'{react_result}', inline=False)
+
+            # Display final results
+            await ctx.send(embed=ch_embed)
+        except Exception as ex:
+            await ctx.send('Error gathering results')
+        finally:
+            cursor.close()  # Close cursor
+            ps_pool.putconn(conn)  # Close connection
+
+    # TODO: Fix
     @commands.command(brief='display most popular emojis/reaction for each channel if available (.fullchstats)')
     async def fullchstats(self, ctx):
 
@@ -111,11 +128,27 @@ class Channel(commands.Cog):
 def setup(client):
     client.add_cog(Channel(client))
 
-def getEmojiSumChn(cursor, channel_name, option, guild_id):
+def getEmojiSumChn(cursor, ch_id, guild_id):
     cursor.execute("""
-                SELECT SUM(cnt) FROM channel 
-                WHERE channel.chname = %s AND emojitype = %s
-                AND guildid = %s""", (channel_name, option, guild_id))
+                SELECT SUM(cnt) FROM emojis 
+                WHERE emojis.chid = %s AND emojitype = 'message'
+                AND guildid = %s""", (str(ch_id), guild_id))
     emojiSum = cursor.fetchone()
-    emojiSum = int(emojiSum[0])
+
+    try:
+        emojiSum = int(emojiSum[0])
+    except Exception:
+        return -1
+    return emojiSum
+
+def getRctSumChn(cursor, ch_id, guild_id):
+    cursor.execute("""
+                SELECT SUM(cnt) FROM emojis 
+                WHERE emojis.chid = %s AND emojitype = 'react'
+                AND guildid = %s""", (str(ch_id), guild_id))
+    emojiSum = cursor.fetchone()
+    try:
+        emojiSum = int(emojiSum[0])
+    except Exception:
+        return -1
     return emojiSum

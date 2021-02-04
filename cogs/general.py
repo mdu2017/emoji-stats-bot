@@ -1,7 +1,9 @@
 import discord
 from discord.ext import commands, tasks
 import const
-
+import datetime
+from const import getConnection
+from const import ps_pool
 
 class General(commands.Cog):
     def __init__(self, client):
@@ -9,25 +11,46 @@ class General(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        self.change_status.start()  # Changes status periodically
+        # self.clean_db.start() # Automated cleaning
         print('General Cog Ready')
 
-    @commands.Cog.listener()
-    async def on_member_join(self, member):  # method expected by client. This runs once when connected
-        print(f'{member} has joined the server')  # notification of login.
-
-    @commands.Cog.listener()
-    async def on_member_remove(self, member):
-        print(f'{member} has left the server')
-
-    # Change bot status every hour
-    @tasks.loop(seconds=3600)
-    async def change_status(self):
         activity = discord.Activity(type=discord.ActivityType.watching, name='!e help')
         await self.client.change_presence(activity=activity)
 
+    @commands.Cog.listener()
+    async def on_member_join(self, member):  # method expected by client. This runs once when connected
+        server_name = member.guild.name
+        print(f'{member} has joined the server {server_name}')  # notification of login.
+
+    @commands.Cog.listener()
+    async def on_member_remove(self, member):
+        server_name = member.guild.name
+        print(f'{member} has left the server {server_name}')
+
+    # Change bot status every 12 hours
+    # @tasks.loop(seconds=43200)
+    # async def clean_db(self):
+    #     conn, cursor = getConnection()
+    #     cursor.execute("""SELECT COUNT(emoji) FROM emojis;""")
+    #     total_rows = cursor.fetchone()
+    #     conn.commit()
+    #     cursor.close()
+    #     ps_pool.putconn(conn)
+    #     print(f'Total rows: {total_rows}')
+    #
+    #     if total_rows >= 9500:
+    #
+
+
+    @commands.command()
+    async def getservers(self, ctx):
+        guilds = list(self.client.guilds)
+        print(f"Connected on {str(len(guilds))} servers:")
+        # print('\n'.join(guild.name for guild in guilds))
+
     # Overrides inherited cog_check method (Check before executing any commands)
     async def cog_check(self, ctx):
+
         # If bot is disabled in the specified channel, don't execute command
         if ctx.channel.name in const.rm_channels:
             return False
@@ -36,6 +59,9 @@ class General(commands.Cog):
 
     @commands.command(pass_context=True)
     async def help(self, ctx):
+
+        await ctx.channel.purge(limit=1)
+
         author = ctx.message.author  # Used to send DM when calling help
 
         # Set ember and header
@@ -49,64 +75,180 @@ class General(commands.Cog):
         em.set_author(name='Bot prefix is !e  (Example command: !e topemojis)')
 
         # Message commands
-        em.add_field(name='useremojis <user>',
-                     value='''Displays user\'s top 5 emojis 
-                     <user> can be nickname or mention''', inline=False)
-        em.add_field(name='topemojis <num>',
-                     value='''Display <num> most used emojis in the server 
-                     <num> = number between 1-15''', inline=False)
-        em.add_field(name='favemoji <@username>',
-                     value='Display user\'s favorite emoji in the server', inline=False)
-        em.add_field(name='fullmsgstats', value='Display stats for all emojis used in the server', inline=False)
+        em.add_field(name='topemojis', value='Shows the 5 most popular emojis', inline=True)
+        em.add_field(name='useremojis <username> <mode>', value='Shows user\'s most used emojis', inline=True)
+        em.add_field(name='favemoji <username>', value='Shows a user\'s favorite emoji', inline=True)
+        em.add_field(name='fullmsgstats', value='Shows stats for all emojis used in messages', inline=True)
+        em.add_field(name='emojistoday', value='Shows all emojis used in the past day', inline=True)
 
         # Reaction commands
-        em.add_field(name='userreacts <user>', value='''Displays user\'s top 5 reactions
-                                                    <user> can be nickname or mention''', inline=False)
-        em.add_field(name='topreacts <num> <mode>', value='''Display <num> most used reactions in the server
-                                                   <num> - number between 1-15
-                                                   <mode> - "custom" or "unicode" -- mode is an optional argument''', inline=False)
-        em.add_field(name='favreact <@username>',
-                     value='''Display user\'s favorite reaction in the server 
-                     <@username> - can use mention or nickname''', inline=False)
-        em.add_field(name='fullreactstats', value='Display stats for all reactions used in the server', inline=False)
+        em.add_field(name='topreacts', value='Shows the 5 most popular reactions', inline=True)
+        em.add_field(name='userreacts <username> <mode>', value='Shows a user\'s most used reactions', inline=True)
+        em.add_field(name='favreact <username>', value='Shows a user\'s favorite reaction', inline=True)
+        em.add_field(name='fullreactstats', value='Shows stats for all reactions used', inline=True)
+        em.add_field(name='reactstoday', value='Show all reactions used in the past day', inline=True)
 
         # Channel commands
-        em.add_field(name='channelstats <channel_name> <option>',
-                     value='''Display top 3 emojis or reactions for a specified channel. 
-                     <channel_name> - name of the channel (no # needed)
-                     <channel_name> and <option> are optional arguments. 
-                     <option> is either "react" or "message"''',
-                     inline=False)
-        em.add_field(name='fullchstats', value='Shows the most popular emoji and react for each channel if possible',
-                     inline=False)
+        em.add_field(name='chstats <channel_name>',
+                     value='Shows a channel\'s top 3 most popular reactions and emojis', inline=True)
+        em.add_field(name='fullchstats (*under work*)',
+                     value='Shows the most popular reaction/emoji for every channel', inline=True)
 
-        # Add descriptions for General commands
-        em.add_field(name='ping', value='Display network latency', inline=False)
+        # Notes
+        em.add_field(name='<mode> - optional argument (use "unicode" or "custom" to filer type)', value='-', inline=False)
+        em.add_field(name='<username> - Can use discord nickname or mention user', value='-', inline=False)
+        em.add_field(name='<channel_name> - Discord text channel name (no # needed)', value='-', inline=False)
 
         await author.send(embed=em)
 
-    # Displays network ping
-    @commands.command(brief='Displays network latency')
-    async def ping(self, ctx):
-        await ctx.send(f'{round(self.client.latency * 1000)}ms')
+    @commands.Cog.listener()
+    async def on_guild_join(self, guild):
+        conn, cursor = getConnection()
+        guild_id = str(guild.id)
+        guild_name = guild.name
 
-    # @commands.command(brief='Toggle normal, unicode, or custom emojis/reactions')
-    # async def toggle(self, ctx, *args):
-    #     choice = ' '.join(args)
-    #     if choice == 'unicode' or choice == 'UNICODE':
-    #         const.current_type = 'unicode'
-    #     elif choice == 'custom' or choice == 'CUSTOM':
-    #         const.current_type = 'custom'
-    #     else:
-    #         const.current_type = 'normal'
+
+        try:
+            # Add to list of guilds
+            cursor.execute("""
+            INSERT INTO guild(guildid, guildname)
+                VALUES (%s, %s)
+                ON CONFLICT DO NOTHING
+                """, (guild_id, guild_name))
+            conn.commit()
+
+            # Read channel data
+            for channel in guild.text_channels:
+                ch_id = channel.id
+                ch_name = channel.name
+
+                cursor.execute("""
+                                INSERT INTO channel(chid, chname, guildid)
+                                VALUES (%s, %s, %s)
+                                ON CONFLICT DO NOTHING
+                                """, (ch_id, ch_name, guild_id))
+            conn.commit()
+
+            # Read user list
+            for member in guild.members:
+                user_id = str(member.id)
+
+                # Skip adding bot ids
+                if member.bot:
+                    continue
+
+                cursor.execute("""
+                    INSERT INTO users(userid, guildid, enabled)
+                    VALUES (%s, %s, True)
+                    ON CONFLICT DO NOTHING""", (user_id, guild_id))
+            conn.commit()
+        except Exception:
+            print('Data already cached')
+        finally:
+            cursor.close()  # Close cursor
+            ps_pool.putconn(conn)  # Return connection to pool
+
+    @commands.command(brief='Delete old entries in the database')
+    async def cleanDBData(self, ctx, arg1=14):
+
+        # Developer-only command
+        dev_id = str(ctx.author.id)
+        if dev_id != '353037475016474637':
+            print("Not Authorized")
+            return
+        else:
+            print("Authorized")
+
+        days = arg1
+
+        conn, cursor = getConnection()
+        cursor.execute("""DELETE FROM emojis WHERE emojidate < (NOW() - INTERVAL '%s days') RETURNING *""", (days,))
+        deleted_rows = cursor.fetchall()
+        conn.commit()
+        cursor.close()
+        ps_pool.putconn(conn)
+
+        print(len(deleted_rows), ' rows were removed')
+
+    ''' Testing function to refresh cache'''
+    # @commands.command(brief='refresh the database')
+    # async def refreshData(self, ctx):
+    #     conn, cursor = getConnection()
+
+    #     for guild in self.client.guilds:
+    #         guild_id = str(guild.id)
+    #         guild_name = guild.name
+
+    #         # Add to list of guilds
+    #         cursor.execute("""
+    #                 INSERT INTO guild(guildid, guildname)
+    #                     VALUES (%s, %s)
+    #                     ON CONFLICT DO NOTHING
+    #                     """, (guild_id, guild_name))
+    #         conn.commit()
+
+    #         # Read channel data
+    #         for channel in guild.text_channels:
+    #             ch_id = channel.id
+    #             ch_name = channel.name
+
+    #             cursor.execute("""
+    #                 INSERT INTO channel(chid, chname, guildid)
+    #                 VALUES (%s, %s, %s)
+    #                 ON CONFLICT DO NOTHING
+    #                 """, (ch_id, ch_name, guild_id))
+    #         conn.commit()
+
+    #         # Read user list
+    #         for member in guild.members:
+    #             user_id = str(member.id)
+
+    #             # Skip adding bot ids
+    #             if member.bot:
+    #                 continue
+
+    #             cursor.execute("""
+    #                 INSERT INTO users(userid, guildid)
+    #                 VALUES (%s, %s) ON CONFLICT DO NOTHING""", (user_id, guild_id))
+    #         conn.commit()
+
+    #     cursor.close()  # Close cursor
+    #     ps_pool.putconn(conn)  # Return connection to pool
+
+    ''' Test timestamp query'''
+    # @commands.command(brief='refresh the database')
+    # async def testtimestamp(self, ctx):
+    #     conn, cursor = getConnection()
     #
-    #     print(f'Set to {const.current_type} mode')
+    #     today = datetime.datetime.today()
+    #     three_weeks_ago = today - datetime.timedelta(weeks=3)
+    #     really_old = today - datetime.timedelta(weeks=4)
 
-    # @commands.command(brief='Renames bot')
-    # async def rename(self, ctx, *args):
-    #     name = ' '.join(args)
-    #     await self.client.user.edit(username=name)
+        # cursor.execute("""
+        #     INSERT INTO emojis(emoji, emojitype, userid, guildid, cnt, emojidate, chid)
+        #     VALUES(%s, %s, %s, %s, %s, %s, %s)
+        #     ON CONFLICT(emoji, emojitype, userid, guildid)
+        #     DO UPDATE SET cnt = emojis.cnt + 1, emojidate = %s
+        # """, ('BADDATA', 'react', '353037475016474637', '689284514886844446', 1, really_old, '739569231112437935', really_old))
+        #
+        # cursor.execute("""
+        #             INSERT INTO emojis(emoji, emojitype, userid, guildid, cnt, emojidate, chid)
+        #             VALUES(%s, %s, %s, %s, %s, %s, %s)
+        #             ON CONFLICT(emoji, emojitype, userid, guildid)
+        #             DO UPDATE SET cnt = emojis.cnt + 1, emojidate = %s
+        #         """, (
+        # 'bad2', 'react', '353037475016474637', '689284514886844446', 1, really_old, '739569231112437935', really_old))
+        # conn.commit()
 
+        # cursor.execute("""DELETE FROM emojis where emojidate < (NOW() - INTERVAL '21 days')""")
+        # conn.commit()
+        # record = cursor.fetchall()
+        #
+        # print(f'Record of old entries: {record}')
+
+
+        # cursor.close()  # Close cursor
+        # ps_pool.putconn(conn)  # Return connection to pool
 
 def setup(client):
     client.add_cog(General(client))
