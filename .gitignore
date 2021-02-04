@@ -8,4 +8,6 @@ __pycache__/
 cogs/__pycache__/
 .idea/
 ./linecheck.py"dbcred.txt" 
-"token.txt" 
+"token.txt"
+*.sql
+
